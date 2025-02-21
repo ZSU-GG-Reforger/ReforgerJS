@@ -2,8 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const { Client, GatewayIntentBits, ActivityType } = require('discord.js');
 const mysql = require('mysql2/promise');
-const fetch = require('node-fetch'); 
-const logger = require('./reforger-server/logger/logger');
+const fetch = require('node-fetch');
+const logger = require('./logger/logger');
 
 /**
  * Load and parse the config file.
@@ -160,7 +160,7 @@ async function performStartupChecks(config) {
   if (config.connectors.mysql && config.connectors.mysql.enabled) {
     const mysqlConfig = config.connectors.mysql;
     const maxRetries = Infinity;
-    const initialRetryDelay = 5000; 
+    const initialRetryDelay = 5000;
     let retryDelay = initialRetryDelay;
 
     const createMySQLPool = async () => {
