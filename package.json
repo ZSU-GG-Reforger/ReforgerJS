@@ -13,20 +13,21 @@
   "dependencies": {
     "arcon.js": "^6.0.8",
     "axios": "^1.7.2",
+    "basic-ftp": "^5.0.5",
     "buffer-crc32": "^1.0.0",
     "crc": "^4.3.2",
     "discord.js": "^14.14.1",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
+    "ftp-tail": "^2.1.1",
     "install": "^0.13.0",
     "mongodb": "^6.13.0",
     "mysql2": "^3.12.0",
     "node-fetch": "^2.7.0",
     "npm": "^11.0.0",
     "rcon": "^1.1.0",
-    "winston": "^3.13.1",
     "ssh2-sftp-client": "^11.0.0",
-    "basic-ftp": "^5.0.5",
+    "winston": "^3.13.1",
     "winston-daily-rotate-file": "^5.0.0"
   }
 }
