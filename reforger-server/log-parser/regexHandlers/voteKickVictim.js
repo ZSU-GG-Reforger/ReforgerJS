@@ -3,7 +3,7 @@ const { EventEmitter } = require("events");
 class VoteKickVictimHandler extends EventEmitter {
     constructor() {
         super();
-        this.regex = /(\d{2}:\d{2}:\d{2}\.\d{3}).*?VOTING SYSTEM - Vote to kick player '([^']+)' \(with player id = (\d+)\) succeeded/;
+        this.regex = /(\d{2}:\d{2}:\d{2}\.\d{3}).*?VOTING SYSTEM - Vote to kick player '(.*?)' \(with player id = (\d+)\) succeeded/;
     }
     
     test(line) {

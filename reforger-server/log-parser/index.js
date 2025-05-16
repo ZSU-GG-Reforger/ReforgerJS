@@ -25,17 +25,12 @@ class LogParser extends EventEmitter {
     this.matchingLinesPerMinute = 0;
     this.matchingLatency = 0;
     this.parsingStatsInterval = null;
-
-    // Bind processLine
     this.processLine = this.processLine.bind(this);
-
-    // Create an async queue to process each line
     this.queue = async.queue((line, callback) => {
       this.processLine(line);
       callback();
     });
 
-    // Instantiate the appropriate log reader based on mode.
     const mode = options.mode || options.logReaderMode || 'tail';
 
     switch (mode) {
@@ -52,7 +47,6 @@ class LogParser extends EventEmitter {
         throw new Error('Invalid logReader mode.');
     }
 
-    // Set up regex handlers.
     this.setupRegexHandlers();
   }
 
@@ -65,6 +59,10 @@ class LogParser extends EventEmitter {
       const ServerHealthHandler = require('./regexHandlers/serverHealth');
       const GameStartHandler = require('./regexHandlers/gameStart');
       const GameEndHandler = require('./regexHandlers/gameEnd');
+      const SATBaseCaptureHandler = require('./regexHandlers/SATBaseCapture');
+      const SATPlayerKilledHandler = require('./regexHandlers/SATPlayerKilled');
+      const SATAdminActionHandler = require('./regexHandlers/SATAdminAction');
+      const SATGameEndHandler = require('./regexHandlers/SATGameEnd');
 
       this.voteKickStartHandler = new VoteKickStartHandler();
       this.voteKickVictimHandler = new VoteKickVictimHandler();
@@ -73,11 +71,14 @@ class LogParser extends EventEmitter {
       this.serverHealthHandler = new ServerHealthHandler();
       this.gameStartHandler = new GameStartHandler();
       this.gameEndHandler = new GameEndHandler();
+      this.satBaseCaptureHandler = new SATBaseCaptureHandler();
+      this.satPlayerKilledHandler = new SATPlayerKilledHandler();
+      this.satAdminActionHandler = new SATAdminActionHandler();
+      this.satGameEndHandler = new SATGameEndHandler();
 
 
       this.removeAllListeners();
 
-      // Re-emit events from regex handlers.
       this.voteKickStartHandler.on('voteKickStart', data => this.emit('voteKickStart', data));
       this.voteKickVictimHandler.on('voteKickVictim', data => this.emit('voteKickVictim', data));
       this.playerJoinedHandler.on('playerJoined', data => this.emit('playerJoined', data));
@@ -85,6 +86,10 @@ class LogParser extends EventEmitter {
       this.serverHealthHandler.on('serverHealth', data => this.emit('serverHealth', data));
       this.gameStartHandler.on('gameStart', data => this.emit('gameStart', data));
       this.gameEndHandler.on('gameEnd', data => this.emit('gameEnd', data));
+      this.satBaseCaptureHandler.on('baseCapture', data => this.emit('baseCapture', data));
+      this.satPlayerKilledHandler.on('playerKilled', data => this.emit('playerKilled', data));
+      this.satAdminActionHandler.on('adminAction', data => this.emit('adminAction', data));
+      this.satGameEndHandler.on('gameEnd', data => this.emit('gameEnd', data));
     } catch (error) {
       logger.error(`Error setting up regex handlers: ${error.message}`);
     }
@@ -125,6 +130,26 @@ class LogParser extends EventEmitter {
     }
     if (this.gameEndHandler && this.gameEndHandler.test(line)) {
       this.gameEndHandler.processLine(line);
+      this.matchingLinesPerMinute++;
+      return;
+    }
+    if (this.satBaseCaptureHandler && this.satBaseCaptureHandler.test(line)) {
+      this.satBaseCaptureHandler.processLine(line);
+      this.matchingLinesPerMinute++;
+      return;
+    }
+    if (this.satPlayerKilledHandler && this.satPlayerKilledHandler.test(line)) {
+      this.satPlayerKilledHandler.processLine(line);
+      this.matchingLinesPerMinute++;
+      return;
+    }
+    if (this.satAdminActionHandler && this.satAdminActionHandler.test(line)) {
+      this.satAdminActionHandler.processLine(line);
+      this.matchingLinesPerMinute++;
+      return;
+    }
+    if (this.satGameEndHandler && this.satGameEndHandler.test(line)) {
+      this.satGameEndHandler.processLine(line);
       this.matchingLinesPerMinute++;
       return;
     }
