@@ -1,4 +1,5 @@
 // log-parser/regexHandlers/SATBaseCapture.js
+// Regex Handler for Bacons Server Admin Tools (SAT) Mod
 const { EventEmitter } = require('events');
 
 class SATBaseCaptureHandler extends EventEmitter {

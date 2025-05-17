@@ -4,8 +4,6 @@ const moment = require('moment');
 const TailLogReader = require('./log-readers/tail');
 const SFTPLogReader = require('./log-readers/sftp');
 const FTPLogReader = require('./log-readers/ftp');
-
-// Use the global logger if available, else fallback to console.
 const logger = global.logger || console;
 
 class LogParser extends EventEmitter {
@@ -63,6 +61,9 @@ class LogParser extends EventEmitter {
       const SATPlayerKilledHandler = require('./regexHandlers/SATPlayerKilled');
       const SATAdminActionHandler = require('./regexHandlers/SATAdminAction');
       const SATGameEndHandler = require('./regexHandlers/SATGameEnd');
+      const GMToolsStatusHandler = require('./regexHandlers/GMToolsStatus');
+      const GMToolsTimeHandler = require('./regexHandlers/GMToolsTime');
+      const FlabbyChatLogsHandler = require('./regexHandlers/FlabbyChatLogs');
 
       this.voteKickStartHandler = new VoteKickStartHandler();
       this.voteKickVictimHandler = new VoteKickVictimHandler();
@@ -75,7 +76,9 @@ class LogParser extends EventEmitter {
       this.satPlayerKilledHandler = new SATPlayerKilledHandler();
       this.satAdminActionHandler = new SATAdminActionHandler();
       this.satGameEndHandler = new SATGameEndHandler();
-
+      this.gmToolsStatusHandler = new GMToolsStatusHandler();
+      this.gmToolsTimeHandler = new GMToolsTimeHandler();
+      this.flabbyChatLogsHandler = new FlabbyChatLogsHandler();
 
       this.removeAllListeners();
 
@@ -90,14 +93,15 @@ class LogParser extends EventEmitter {
       this.satPlayerKilledHandler.on('playerKilled', data => this.emit('playerKilled', data));
       this.satAdminActionHandler.on('adminAction', data => this.emit('adminAction', data));
       this.satGameEndHandler.on('gameEnd', data => this.emit('gameEnd', data));
+      this.gmToolsStatusHandler.on('gmToolsStatus', data => this.emit('gmToolsStatus', data));
+      this.gmToolsTimeHandler.on('gmToolsTime', data => this.emit('gmToolsTime', data));
+      this.flabbyChatLogsHandler.on('chatMessage', data => this.emit('chatMessage', data));
     } catch (error) {
       logger.error(`Error setting up regex handlers: ${error.message}`);
     }
   }
 
   processLine(line) {
-   // logger.verbose('LogParser', `Processing line: ${line}`);
-
     if (this.voteKickStartHandler && this.voteKickStartHandler.test(line)) {
       this.voteKickStartHandler.processLine(line);
       this.matchingLinesPerMinute++;
@@ -153,6 +157,21 @@ class LogParser extends EventEmitter {
       this.matchingLinesPerMinute++;
       return;
     }
+    if (this.gmToolsStatusHandler && this.gmToolsStatusHandler.test(line)) {
+      this.gmToolsStatusHandler.processLine(line);
+      this.matchingLinesPerMinute++;
+      return;
+    }
+    if (this.gmToolsTimeHandler && this.gmToolsTimeHandler.test(line)) {
+      this.gmToolsTimeHandler.processLine(line);
+      this.matchingLinesPerMinute++;
+      return;
+    }
+    if (this.flabbyChatLogsHandler && this.flabbyChatLogsHandler.test(line)) {
+      this.flabbyChatLogsHandler.processLine(line);
+      this.matchingLinesPerMinute++;
+      return;
+    }
 
     this.linesPerMinute++;
   }
@@ -194,7 +213,6 @@ class LogParser extends EventEmitter {
     this.queue.kill();
     this.removeAllListeners();
   }
-
 }
 
 module.exports = LogParser;

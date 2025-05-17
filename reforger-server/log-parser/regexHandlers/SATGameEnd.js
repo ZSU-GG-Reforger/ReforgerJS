@@ -1,4 +1,5 @@
 // log-parser/regexHandlers/SATGameEnd.js
+// Regex Handler for Bacons Server Admin Tools (SAT) Mod
 const { EventEmitter } = require('events');
 
 class SATGameEndHandler extends EventEmitter {

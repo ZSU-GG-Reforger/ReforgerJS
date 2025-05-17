@@ -1,4 +1,5 @@
 // log-parser/regexHandlers/SATPlayerKilled.js
+// Regex Handler for Bacons Server Admin Tools (SAT) Mod
 const { EventEmitter } = require('events');
 
 class SATPlayerKilledHandler extends EventEmitter {
