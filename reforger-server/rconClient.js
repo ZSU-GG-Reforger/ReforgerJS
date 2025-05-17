@@ -43,7 +43,7 @@ class BattleEyeClientReforger {
       this.error = false;
       this.socket.bind();
     } catch (err) {
-      console.error('Failed to create socket:', err);
+      logger.error('Failed to create socket:', err);
       this.error = true;
       if (this.timeoutHandler) {
         this.timeoutHandler();
@@ -52,7 +52,7 @@ class BattleEyeClientReforger {
     }
 
     this.socket.on('error', (err) => {
-      console.log('Socket error:', err);
+      logger.log('Socket error:', err);
       this.error = true;
       this.close();
     });
@@ -62,7 +62,7 @@ class BattleEyeClientReforger {
       this.resetWatchdog();
 
       if (message.length < 8) {
-        console.warn('Received malformed packet (too short).');
+        logger.warn('Received malformed packet (too short).');
         return;
       }
 
@@ -75,7 +75,7 @@ class BattleEyeClientReforger {
          */
         case 0x00: {
           if (message.length < 9) {
-            console.warn('Malformed login response (too short).');
+            logger.warn('Malformed login response (too short).');
             return;
           }
           const loginResp = message[8];
@@ -85,11 +85,11 @@ class BattleEyeClientReforger {
               this.loginSuccessHandler();
             }
           } else if (loginResp === 0x00) {
-            console.log('Login failed');
+            logger.log('Login failed');
             this.close();
             this.error = true;
           } else {
-            console.log('Unknown login response');
+            logger.log('Unknown login response');
             this.error = true;
           }
           return;
@@ -106,7 +106,7 @@ class BattleEyeClientReforger {
          */
         case 0x01: {
           if (message.length < 9) {
-            console.warn('Malformed command response (too short).');
+            logger.warn('Malformed command response (too short).');
             return;
           }
 
@@ -151,7 +151,7 @@ class BattleEyeClientReforger {
          */
         case 0x02: {
           if (message.length < 9) {
-            console.warn('Malformed server message (too short).');
+            logger.warn('Malformed server message (too short).');
             return;
           }
           const seq = message[8];
@@ -165,7 +165,7 @@ class BattleEyeClientReforger {
         }
 
         default:
-          console.warn(`Unknown packet type: 0x${packetType.toString(16)}`);
+          logger.warn(`Unknown packet type: 0x${packetType.toString(16)}`);
       }
     });
 
@@ -203,7 +203,7 @@ class BattleEyeClientReforger {
    */
   login() {
     if (!this.socket || this.error) {
-      console.warn('Cannot login: socket not initialized or in error state.');
+      logger.warn('Cannot login: socket not initialized or in error state.');
       return;
     }
     
@@ -224,12 +224,12 @@ class BattleEyeClientReforger {
    */
   sendCommand(command) {
     if (!this.socket) {
-      console.warn('Cannot send command: socket is not initialized');
+      logger.warn('Cannot send command: socket is not initialized');
       return;
     }
     
     if (!this.loggedIn || this.error) {
-      console.warn('Cannot send command: not logged in or error state.');
+      logger.warn('Cannot send command: not logged in or error state.');
       return;
     }
     
@@ -305,7 +305,7 @@ class BattleEyeClientReforger {
     try {
       this.socket.send(data, 0, data.length, this.port, this.ip);
     } catch (err) {
-      console.error(`Error sending data: ${err.message}`);
+      logger.error(`Error sending data: ${err.message}`);
       this.error = true;
       
       if (this.timeoutHandler) {
@@ -326,7 +326,7 @@ class BattleEyeClientReforger {
     // Increase to 60s or more
     this.watchdog = setTimeout(() => {
       if (Date.now() - this.lastResponse >= 60000) {
-        console.warn('Connection timed out - no response from server in 60s.');
+        logger.warn('Connection timed out - no response from server in 60s.');
         this.close();
       }
     }, 60000);
@@ -373,7 +373,7 @@ class BattleEyeClientReforger {
         this.socket.close();
         this.socket.unref();
       } catch (err) {
-        console.warn(`Error closing socket: ${err.message}`);
+        logger.warn(`Error closing socket: ${err.message}`);
       }
       this.socket = null; 
     }

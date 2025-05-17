@@ -30,7 +30,7 @@ class TailLogReader {
         this.lastFileSize = state.lastFileSize || 0;
       }
     } catch (error) {
-      console.error(`Error loading state: ${error.message}`);
+      logger.error(`Error loading state: ${error.message}`);
     }
   }
 
@@ -42,7 +42,7 @@ class TailLogReader {
       };
       fs.writeFileSync(this.stateFile, JSON.stringify(state, null, 2), 'utf-8');
     } catch (error) {
-      console.error(`Error saving state: ${error.message}`);
+      logger.error(`Error saving state: ${error.message}`);
     }
   }
 
@@ -63,7 +63,7 @@ class TailLogReader {
           }
           return;
         } else {
-          console.warn(`Log file not found in latest directory: ${potentialPath}`);
+          logger.warn(`Log file not found in latest directory: ${potentialPath}`);
         }
       } else {
         const directPath = path.join(this.logDir, this.filename);
@@ -74,16 +74,16 @@ class TailLogReader {
           }
           return;
         }
-        console.warn(`No log subdirectories found and ${directPath} does not exist.`);
+        logger.warn(`No log subdirectories found and ${directPath} does not exist.`);
       }
     } catch (err) {
-      console.error(`Error finding latest log file: ${err.message}`);
+      logger.error(`Error finding latest log file: ${err.message}`);
     }
   }
 
   scanLogs() {
     if (!this.currentLogPath) {
-      console.warn('No log file currently set to scan.');
+      logger.warn('No log file currently set to scan.');
       return;
     }
     try {
@@ -109,12 +109,12 @@ class TailLogReader {
           stream.destroy();
         });
         stream.on('error', err => {
-          console.error(`Error reading log file: ${err.message}`);
+          logger.error(`Error reading log file: ${err.message}`);
           stream.destroy();
         });
       }
     } catch (err) {
-      console.error(`Error scanning logs: ${err.message}`);
+      logger.error(`Error scanning logs: ${err.message}`);
     }
   }
 
@@ -122,7 +122,7 @@ class TailLogReader {
     this.loadState();
     this.findLatestLogFile();
     if (!this.currentLogPath) {
-      console.error('No log file found to monitor.');
+      logger.error('No log file found to monitor.');
       return Promise.reject(new Error('No log file found to monitor.'));
     }
     this.scanIntervalID = setInterval(() => {
@@ -134,7 +134,7 @@ class TailLogReader {
       this.saveState();
     }, this.stateSaveInterval);
 
-    console.log(`Started watching log file: ${this.currentLogPath}`);
+    logger.log(`Started watching log file: ${this.currentLogPath}`);
     return Promise.resolve();
   }
 
