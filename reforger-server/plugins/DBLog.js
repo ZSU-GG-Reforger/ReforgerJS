@@ -45,9 +45,7 @@ class DBLog {
       this.startLogging();
       this.isInitialized = true;
     } catch (error) {
-      if (serverInstance.logger) {
-        serverInstance.logger.error(`Error initializing DBLog: ${error.message}`);
-      }
+        logger.error(`Error initializing DBLog: ${error.message}`);
     }
   }
 
@@ -99,17 +97,14 @@ class DBLog {
       if (alterQueries.length > 0) {
         const alterQuery = `ALTER TABLE players ${alterQueries.join(', ')}`;
         await connection.query(alterQuery);
+          logger.info(`DBLog: Migrated players table with new columns: ${alterQueries.join(', ')}`);
         
-        if (this.serverInstance.logger) {
-          this.serverInstance.logger.info(`DBLog: Migrated players table with new columns: ${alterQueries.join(', ')}`);
-        }
       }
       
       connection.release();
     } catch (error) {
-      if (this.serverInstance.logger) {
-        this.serverInstance.logger.error(`Error migrating schema: ${error.message}`);
-      }
+        logger.error(`Error migrating schema: ${error.message}`);
+      
       throw error;
     }
   }
@@ -139,7 +134,7 @@ class DBLog {
 
     try {
       if (player.device === 'Console' && player.steamID) {
-        this.serverInstance.logger.warn(`Unexpected: Console player ${player.name} has a steamID: ${player.steamID}. This shouldn't happen.`);
+        logger.warn(`Unexpected: Console player ${player.name} has a steamID: ${player.steamID}. This shouldn't happen.`);
       }
 
       if (this.playerCache.has(player.uid)) {
@@ -224,9 +219,8 @@ class DBLog {
         this.playerCache.delete(player.uid);
       }, this.cacheTTL);
     } catch (error) {
-      if (this.serverInstance.logger) {
-        this.serverInstance.logger.error(`Error processing player ${player.name}: ${error.message}`);
-      }
+        logger.error(`Error processing player ${player.name}: ${error.message}`);
+      
     }
   }
 
