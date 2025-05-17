@@ -70,8 +70,8 @@
       "command": "stats",
       "enabled": false,
       "commandLevel": 3,
-      "servers": 3,
-      "statsTable": ""
+      "servers": 1,
+      "statsTable": "Same_as_DBLogStats_Plugin"
     },
     {
       "command": "voteinfo",
