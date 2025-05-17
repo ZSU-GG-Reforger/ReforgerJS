@@ -134,7 +134,7 @@ class TailLogReader {
       this.saveState();
     }, this.stateSaveInterval);
 
-    logger.log(`Started watching log file: ${this.currentLogPath}`);
+    logger.info(`Started watching log file: ${this.currentLogPath}`);
     return Promise.resolve();
   }
 
