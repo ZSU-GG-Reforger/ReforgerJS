@@ -6,6 +6,7 @@
     "queryPort": 1111,
     "rconPort": 1111,
     "rconPassword": "PASSWORD",
+    "reloadCommandsOnStartup": true,
     "logReaderMode": "tail",
     "filename": "console.log",
     "backfill": true,
@@ -69,6 +70,7 @@
       "command": "stats",
       "enabled": false,
       "commandLevel": 3,
+      "servers": 3,
       "statsTable": ""
     },
     {
