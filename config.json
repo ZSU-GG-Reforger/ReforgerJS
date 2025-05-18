@@ -40,6 +40,13 @@
       "password": "password",
       "database": "reforgerjs",
       "dialect": "mysql"
+    },
+    "battlemetrics": {
+      "enabled": true,
+      "orgID": "Your Org ID",
+      "serverID": "Your Server ID",
+      "token": "Your BattleMetrics API Token",
+      "listID": "Your Ban List ID"
     }
   },
   "roles": {
@@ -49,16 +56,9 @@
     "roleName3": "discord RoleID"
   },
   "roleLevels": {
-    "1": [
-      "roleName",
-      "roleName1"
-    ],
-    "2": [
-      "roleName2"
-    ],
-    "3": [
-      "roleName3"
-    ]
+    "1": ["roleName", "roleName1"],
+    "2": ["roleName2"],
+    "3": ["roleName3"]
   },
   "commands": [
     {
@@ -139,11 +139,11 @@
       "showMemoryUsage": false,
       "discordBotStatus": true,
       "embed": {
-          "title": "Arma Reforger Server Status",
-          "color": "#00FF00",
-          "footer": "ReforgerJS",
-          "thumbnail": false,
-          "thumbnailURL": "https://IMAGE_URL_HERE.png"
+        "title": "Arma Reforger Server Status",
+        "color": "#00FF00",
+        "footer": "ReforgerJS",
+        "thumbnail": false,
+        "thumbnailURL": "https://IMAGE_URL_HERE.png"
       }
     }
   ]
