@@ -7,6 +7,7 @@ const { validateConfig, performStartupChecks } = require('./reforger-server/fact
 const { loadPlugins, mountPlugins } = require('./reforger-server/pluginLoader');
 const logger = require('./reforger-server/logger/logger');
 const deployCommands = require('./deploy-commands');
+const { checkVersion } = require('./reforger-server/utils/versionChecker');
 
 function loadConfig(filePath) {
     try {
@@ -40,6 +41,11 @@ async function main() {
 
         // 3) Perform startup checks and get the Discord client
         const discordClient = await performStartupChecks(config);
+        
+        const githubOwner = config.github?.owner || 'ZSU-GG-Reforger';
+        const githubRepo = config.github?.repo || 'ReforgerJS';
+        
+        await checkVersion(githubOwner, githubRepo, logger);
 
         // 3.5) Reload Discord commands if configured
         if (config.server && config.server.reloadCommandsOnStartup === true) {

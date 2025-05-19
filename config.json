@@ -146,5 +146,9 @@
         "thumbnailURL": "https://IMAGE_URL_HERE.png"
       }
     }
-  ]
+  ],
+  "github": {
+    "owner": "ZSU-GG-Reforger",
+    "repo": "ReforgerJS"
+  }
 }
