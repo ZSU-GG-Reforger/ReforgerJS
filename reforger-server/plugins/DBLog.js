@@ -41,9 +41,12 @@ class DBLog {
       }
 
       await this.setupSchema();
+      await this.migrateSchema();
       this.startLogging();
       this.isInitialized = true;
-    } catch (error) {}
+    } catch (error) {
+        logger.error(`Error initializing DBLog: ${error.message}`);
+    }
   }
 
   async setupSchema() {
@@ -54,6 +57,8 @@ class DBLog {
         playerIP VARCHAR(255) NULL,
         playerUID VARCHAR(255) NOT NULL UNIQUE,
         beGUID VARCHAR(255) NULL,
+        steamID VARCHAR(255) NULL,
+        device VARCHAR(50) NULL,
         created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `;
@@ -63,6 +68,43 @@ class DBLog {
       await connection.query(createTableQuery);
       connection.release();
     } catch (error) {
+      throw error;
+    }
+  }
+
+  async migrateSchema() {
+    try {
+      const connection = await process.mysqlPool.getConnection();
+      
+      const [columns] = await connection.query(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME = 'players'
+      `);
+      
+      const columnNames = columns.map(col => col.COLUMN_NAME);
+      const alterQueries = [];
+      
+      if (!columnNames.includes('steamID')) {
+        alterQueries.push('ADD COLUMN steamID VARCHAR(255) NULL');
+      }
+      
+      if (!columnNames.includes('device')) {
+        alterQueries.push('ADD COLUMN device VARCHAR(50) NULL');
+      }
+      
+      if (alterQueries.length > 0) {
+        const alterQuery = `ALTER TABLE players ${alterQueries.join(', ')}`;
+        await connection.query(alterQuery);
+          logger.info(`DBLog: Migrated players table with new columns: ${alterQueries.join(', ')}`);
+        
+      }
+      
+      connection.release();
+    } catch (error) {
+        logger.error(`Error migrating schema: ${error.message}`);
+      
       throw error;
     }
   }
@@ -91,13 +133,19 @@ class DBLog {
     }
 
     try {
+      if (player.device === 'Console' && player.steamID) {
+        logger.warn(`Unexpected: Console player ${player.name} has a steamID: ${player.steamID}. This shouldn't happen.`);
+      }
+
       if (this.playerCache.has(player.uid)) {
         const cachedPlayer = this.playerCache.get(player.uid);
 
         if (
           cachedPlayer.name === player.name &&
           cachedPlayer.ip === player.ip &&
-          cachedPlayer.beGUID === player.beGUID
+          cachedPlayer.beGUID === player.beGUID &&
+          cachedPlayer.steamID === player.steamID &&
+          cachedPlayer.device === player.device
         ) {
           return;
         }
@@ -125,6 +173,14 @@ class DBLog {
           updateFields.beGUID = player.beGUID;
           needsUpdate = true;
         }
+        if (player.steamID !== undefined && dbPlayer.steamID !== player.steamID) {
+          updateFields.steamID = player.steamID;
+          needsUpdate = true;
+        }
+        if (player.device !== undefined && dbPlayer.device !== player.device) {
+          updateFields.device = player.device;
+          needsUpdate = true;
+        }
 
         if (needsUpdate) {
           const setClause = Object.keys(updateFields)
@@ -138,14 +194,16 @@ class DBLog {
         }
       } else {
         const insertQuery = `
-          INSERT INTO players (playerName, playerIP, playerUID, beGUID)
-          VALUES (?, ?, ?, ?)
+          INSERT INTO players (playerName, playerIP, playerUID, beGUID, steamID, device)
+          VALUES (?, ?, ?, ?, ?, ?)
         `;
         await process.mysqlPool.query(insertQuery, [
           player.name || null,
           player.ip || null,
           player.uid,
           player.beGUID || null,
+          player.steamID !== undefined ? player.steamID : null,
+          player.device || null,
         ]);
       }
 
@@ -153,12 +211,17 @@ class DBLog {
         name: player.name,
         ip: player.ip,
         beGUID: player.beGUID,
+        steamID: player.steamID,
+        device: player.device,
       });
 
       setTimeout(() => {
         this.playerCache.delete(player.uid);
       }, this.cacheTTL);
-    } catch (error) {}
+    } catch (error) {
+        logger.error(`Error processing player ${player.name}: ${error.message}`);
+      
+    }
   }
 
   async cleanup() {

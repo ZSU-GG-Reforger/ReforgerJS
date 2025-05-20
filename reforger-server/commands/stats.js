@@ -10,4 +10,10 @@ module.exports = {
                 .setDescription('The UUID or UserName of the player')
                 .setRequired(true)
         )
+        .addIntegerOption(option =>
+            option
+                .setName('server')
+                .setDescription('Server Number (leave empty for all servers)')
+                .setRequired(false)
+        )
 };

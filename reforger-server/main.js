@@ -98,7 +98,6 @@ class ReforgerServer extends EventEmitter {
       }
 
       this.setupLogParserEventHandlers();
-      
       this.logParser.watch();
       logger.info("Log Parser setup complete.");
     } catch (error) {
@@ -107,18 +106,12 @@ class ReforgerServer extends EventEmitter {
   }
 
   setupLogParserEventHandlers() {
-    // General log events
     this.logParser.on("event", (eventData) => {
       this.emit("logEvent", eventData);
     });
 
-    // Vote kick events
     this.setupVoteKickEventHandlers();
-
-    // Player-related events
     this.setupPlayerEventHandlers();
-
-    // Server health events
     this.logParser.on("serverHealth", (data) => {
       global.serverFPS = data.fps;
       global.serverMemoryUsage = data.memory;
@@ -126,47 +119,49 @@ class ReforgerServer extends EventEmitter {
       const memoryMB = (global.serverMemoryUsage / 1024).toFixed(2);
       //logger.verbose(`Server Health updated: FPS: ${global.serverFPS}, Memory: ${global.serverMemoryUsage} kB (${memoryMB} MB), Player Count: ${global.serverPlayerCount}`);
     });
-
-    // Game state events
     this.setupGameStateEventHandlers();
+    this.setupSATEventHandlers();
+    this.setupGMToolsEventHandlers();
+    this.setupFlabbyChatEventHandlers();
   }
 
   setupVoteKickEventHandlers() {
-    // Votekick Start event
     this.logParser.on("voteKickStart", (data) => {
       logger.info(`Votekick Started by ${data.voteOffenderName} (ID: ${data.voteOffenderId}) against ${data.voteVictimName} (ID: ${data.voteVictimId})`);
-      
       this.emit("voteKickStart", data);
     });
 
-  // Handle voteKickVictim event
   this.logParser.on("voteKickVictim", (data) => {
     logger.info(`Vote kick succeeded against player '${data.voteVictimName}' (ID: ${data.voteVictimId})`);
-    
     this.emit("voteKickVictim", data);
   });
 }
 
-  setupPlayerEventHandlers() {
-    this.logParser.on("playerJoined", (data) => {
-      const { playerName, playerIP, playerNumber, beGUID } = data;
-      if (this.rcon) {
-        const existing = this.rcon.players.find((p) => p.name === playerName);
-        if (existing) {
-          existing.ip = playerIP;
-          if (beGUID) existing.beGUID = beGUID;
-        } else {
-          const newPlayer = {
-            name: playerName,
-            number: playerNumber,
-            ip: playerIP,
-          };
-          if (beGUID) newPlayer.beGUID = beGUID;
-          this.rcon.players.push(newPlayer);
-        }
+setupPlayerEventHandlers() {
+  this.logParser.on("playerJoined", (data) => {
+    const { playerName, playerIP, playerNumber, beGUID, steamID, device } = data;
+    if (this.rcon) {
+      const existing = this.rcon.players.find((p) => p.name === playerName);
+      if (existing) {
+        existing.ip = playerIP;
+        if (beGUID) existing.beGUID = beGUID;
+        if (steamID !== undefined) existing.steamID = steamID;
+        if (device !== undefined) existing.device = device;
+      } else {
+        const newPlayer = {
+          name: playerName,
+          number: playerNumber,
+          ip: playerIP,
+        };
+        if (beGUID) newPlayer.beGUID = beGUID;
+        if (steamID !== undefined) newPlayer.steamID = steamID;
+        if (device !== undefined) newPlayer.device = device;
+        this.rcon.players.push(newPlayer);
       }
-      this.emit("playerJoined", data);
-    });
+    }
+    logger.verbose(`Player joined: ${playerName} (#${playerNumber}) from ${playerIP} - Device: ${device || 'Unknown'}, SteamID: ${steamID || 'None'}, BE GUID: ${beGUID || 'Unknown'}`);
+    this.emit("playerJoined", data);
+  });
 
     this.logParser.on("playerUpdate", (data) => {
       if (this.rcon) {
@@ -198,47 +193,87 @@ class ReforgerServer extends EventEmitter {
       }
       this.emit("playerUpdate", data);
     });
+  }
+
+
+  setupSATEventHandlers() {
+    this.logParser.on("baseCapture", (data) => {
+      logger.info(`Base captured: ${data.base} by faction ${data.faction}`);
+      this.emit("baseCapture", data);
+    });
 
     this.logParser.on("playerKilled", (data) => {
-      logger.verbose(`[playerKilled event] Received data: ${JSON.stringify(data)}`);
-
-      let attackerUID = "missing";
-      let victimUID = "missing";
-
-      if (data.attackerName === "AI") {
-        attackerUID = "AI";
-      } else {
-        const attacker = this.players.find((p) => p.name === data.attackerName);
-        if (attacker) {
-          attackerUID = attacker.uid || "missing";
-        }
-      }
-
-      const victim = this.players.find((p) => p.name === data.victimName);
-      if (victim) {
-        victimUID = victim.uid || "missing";
-      }
-
+      logger.verbose(`ServerAdminTools Player killed: ${data.playerName} by ${data.instigatorName}, friendly fire: ${data.friendlyFire}`);
+      
       const payload = {
-        attackerUID,
-        attackerName: data.attackerName,
-        victimName: data.victimName,
-        victimUID,
+        time: data.time,
+        playerName: data.playerName,
+        instigatorName: data.instigatorName,
         friendlyFire: data.friendlyFire,
+        isAI: data.isAI
       };
-
-      logger.verbose(
-        `[playerKilled event] Emitting playerKilled with payload: ${JSON.stringify(payload)}`
-      );
-      this.emit("playerKilled", payload);
-
+      
+      this.emit("satPlayerKilled", payload);
+      
       if (data.friendlyFire) {
-        logger.verbose(
-          `[playerKilled event] Emitting friendlyTeamKill with payload: ${JSON.stringify(payload)}`
-        );
-        this.emit("friendlyTeamKill", payload);
+        logger.info(`ServerAdminTools Friendly fire: ${data.instigatorName} killed ${data.playerName}`);
+        this.emit("satFriendlyFire", payload);
       }
     });
+
+    this.logParser.on("adminAction", (data) => {
+      logger.info(`Admin action: ${data.action} by ${data.adminName} on player ${data.targetPlayer}`);
+      this.emit("adminAction", data);
+    });
+
+    this.logParser.on("gameEnd", (data) => {
+      if (data.reason && data.winner) {
+        logger.info(`ServerAdminTools Game ended: Reason: ${data.reason}, Winner: ${data.winner}`);
+        this.emit("satGameEnd", data);
+      }
+    });
+  }
+
+  setupGMToolsEventHandlers() {
+    this.logParser.on("gmToolsStatus", (data) => {
+      logger.info(`GM Tools: Player ${data.playerName} (ID: ${data.playerId}) ${data.status === 'Enter' ? 'entered' : 'exited'} Game Master mode`);
+      this.emit("gmToolsStatus", data);
+    });
+
+    this.logParser.on("gmToolsTime", (data) => {
+      logger.verbose(`GM Tools: Session duration for ${data.playerName} (ID: ${data.playerId}): ${data.duration} seconds`);
+      this.emit("gmToolsTime", data);
+    });
+  }
+
+  setupFlabbyChatEventHandlers() {
+    this.logParser.on("chatMessage", (data) => {
+      const channelType = this.getChatChannelType(data.channelId);
+      logger.verbose(`Chat: [${channelType}] ${data.playerName}: ${data.message}`);
+      
+      this.emit("chatMessage", {
+        time: data.time,
+        playerBiId: data.playerBiId,
+        senderFaction: data.senderFaction,
+        channelId: data.channelId,
+        channelType: channelType,
+        senderId: data.senderId,
+        playerName: data.playerName,
+        message: data.message,
+        serverName: data.serverName
+      });
+    });
+  }
+
+  getChatChannelType(channelId) {
+    switch(channelId) {
+      case '0': return 'Global';
+      case '1': return 'Faction';
+      case '2': return 'Group';
+      case '3': return 'Vehicle';
+      case '4': return 'Local';
+      default: return 'Unknown';
+    }
   }
 
   setupGameStateEventHandlers() {

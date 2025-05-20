@@ -7,13 +7,14 @@ module.exports = {
         .addStringOption(option =>
             option
                 .setName('identifier')
-                .setDescription('The type of identifier (beGUID, UUID, Name, or IP)')
+                .setDescription('The type of identifier (beGUID, UUID, Name, IP, or SteamID)')
                 .setRequired(true)
                 .addChoices(
                     { name: 'beGUID', value: 'beguid' },
                     { name: 'UUID', value: 'uuid' },
                     { name: 'Name', value: 'name' },
-                    { name: 'IP', value: 'ip' }
+                    { name: 'IP', value: 'ip' },
+                    { name: 'SteamID', value: 'steamid' }
                 )
         )
         .addStringOption(option =>

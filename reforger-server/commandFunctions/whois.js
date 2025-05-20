@@ -2,15 +2,15 @@ const mysql = require("mysql2/promise");
 
 module.exports = async (interaction, serverInstance, discordClient, extraData = {}) => {
     try {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply({ ephemeral: true });
+        }
+
         const user = interaction.user;
         const identifier = extraData.identifier;
         const value = extraData.value;
         
         logger.info(`[Whois Command] User: ${user.username} (ID: ${user.id}) used /whois with Identifier: ${identifier}, Value: ${value}`);
-
-        if (!interaction.deferred && !interaction.replied) {
-            await interaction.deferReply({ ephemeral: true });
-        }
 
         if (!serverInstance.config.connectors ||
             !serverInstance.config.connectors.mysql ||
@@ -30,7 +30,8 @@ module.exports = async (interaction, serverInstance, discordClient, extraData = 
             beguid: 'beGUID',
             uuid: 'playerUID',
             name: 'playerName',
-            ip: 'playerIP'
+            ip: 'playerIP',
+            steamid: 'steamID'
         };
 
         const dbField = fieldMap[identifier.toLowerCase()];
@@ -40,14 +41,58 @@ module.exports = async (interaction, serverInstance, discordClient, extraData = 
             return;
         }
 
+        if (identifier.toLowerCase() === 'steamid') {
+            if (!/^\d{17}$/.test(value)) {
+                await interaction.editReply('Invalid SteamID format. SteamID should be 17 digits long.');
+                return;
+            }
+        }
+
         try {
-            const [rows] = await pool.query(
-                `SELECT playerName, playerIP, playerUID, beGUID FROM players WHERE ?? = ?`,
-                [dbField, value]
-            );
+            let query;
+            let params;
+            
+            if (dbField === 'playerName') {
+                query = `SELECT playerName, playerIP, playerUID, beGUID, steamID, device FROM players WHERE ${dbField} LIKE ?`;
+                params = [`%${value}%`];
+            } else {
+                query = `SELECT playerName, playerIP, playerUID, beGUID, steamID, device FROM players WHERE ${dbField} = ?`;
+                params = [value];
+            }
+
+            const [rows] = await pool.query(query, params);
 
             if (rows.length === 0) {
                 await interaction.editReply(`No information can be found for ${identifier}: ${value}`);
+                return;
+            }
+
+            if (dbField === 'playerName' && rows.length > 1) {
+                const displayCount = Math.min(rows.length, 10);
+                let responseMessage = `Found ${rows.length} players matching "${value}". `;
+                
+                if (rows.length > 10) {
+                    responseMessage += `Showing first 10 results. Please refine your search for more specific results.\n\n`;
+                } else {
+                    responseMessage += `Full details for each match:\n\n`;
+                }
+                
+                for (let i = 0; i < displayCount; i++) {
+                    const player = rows[i];
+                    let playerDetails = `${i+1}. ${player.playerName || 'Unknown'}\n` +
+                                       `   UUID: ${player.playerUID || 'Missing'}\n` +
+                                       `   IP: ${player.playerIP || 'Missing'}\n` +
+                                       `   beGUID: ${player.beGUID || 'Missing'}\n` +
+                                       `   Device: ${player.device || 'Not Found'}\n`;
+                    
+                    if (player.device === 'PC') {
+                        playerDetails += `   SteamID: ${player.steamID || 'Not Found'}\n`;
+                    }
+                    
+                    responseMessage += playerDetails + '\n';
+                }
+                
+                await interaction.editReply(responseMessage);
                 return;
             }
 
@@ -63,12 +108,19 @@ module.exports = async (interaction, serverInstance, discordClient, extraData = 
             };
 
             rows.forEach((player, index) => {
+                let playerInfo = `Name: ${player.playerName || 'Missing Player Name'}\n` +
+                               `IP Address: ${player.playerIP || 'Missing IP Address'}\n` +
+                               `Reforger UUID: ${player.playerUID || 'Missing UUID'}\n` +
+                               `be GUID: ${player.beGUID || 'Missing beGUID'}\n` +
+                               `Device: ${player.device || 'Not Found'}`;
+                
+                if (player.device === 'PC') {
+                    playerInfo += `\nSteamID: ${player.steamID || 'Not Found'}`;
+                }
+                
                 const playerData = {
                     name: `Player ${index + 1}`,
-                    value: `Name: ${player.playerName || 'Missing Player Name'}\n` +
-                           `IP Address: ${player.playerIP || 'Missing IP Address'}\n` +
-                           `Reforger UUID: ${player.playerUID || 'Missing UUID'}\n` +
-                           `be GUID: ${player.beGUID || 'Missing beGUID'}`
+                    value: playerInfo
                 };
 
                 currentEmbed.fields.push(playerData);

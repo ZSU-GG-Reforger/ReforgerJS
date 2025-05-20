@@ -66,7 +66,6 @@ class LogVoteKickStart {
   }
 
   async handleVoteKickStart(data) {
-    // Use new properties, with fallbacks if missing
     const voteOffenderName = data?.voteOffenderName || "Missing Value";
     const voteOffenderId = data?.voteOffenderId || "Missing Id";
     const voteVictimName = data?.voteVictimName || "Missing Value";

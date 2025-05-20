@@ -6,6 +6,7 @@
     "queryPort": 1111,
     "rconPort": 1111,
     "rconPassword": "PASSWORD",
+    "reloadCommandsOnStartup": true,
     "logReaderMode": "tail",
     "filename": "console.log",
     "backfill": true,
@@ -69,11 +70,17 @@
       "command": "stats",
       "enabled": false,
       "commandLevel": 3,
-      "statsTable": ""
+      "servers": 1,
+      "statsTable": "Same_as_DBLogStats_Plugin"
+    },
+    {
+      "command": "voteinfo",
+      "commandLevel": 3,
+      "enabled": false
     },
     {
       "command": "rcon",
-      "enabled": true,
+      "enabled": false,
       "commandLevel": 3,
       "ban": 3,
       "shutdown": 3,
@@ -96,6 +103,10 @@
       "plugin": "DBLog",
       "enabled": false,
       "interval": 5
+    },
+    {
+      "plugin": "VoteLogs",
+      "enabled": false
     },
     {
       "plugin": "DBLogStats",

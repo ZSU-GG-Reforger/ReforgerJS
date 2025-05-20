@@ -66,7 +66,6 @@ class LogVoteKickVictim {
   }
 
   async handleVoteKickVictim(data) {
-    // Use new properties, with fallbacks if missing
     const voteVictimName = data?.voteVictimName || "Missing Value";
     const voteVictimId = data?.voteVictimId || "Missing Id";
 

@@ -4,7 +4,7 @@ const { EventEmitter } = require('events');
 class PlayerUpdateHandler extends EventEmitter {
     constructor() {
         super();
-        this.regex = /(\d{2}:\d{2}:\d{2}\.\d{3})\s+NETWORK\s+:\s+### Updating player: PlayerId=(\d+), Name=([^,]+), IdentityId=([a-f0-9-]+)/;
+        this.regex = /(\d{2}:\d{2}:\d{2}\.\d{3})\s+NETWORK\s+:\s+### Updating player: PlayerId=(\d+), Name=(.*?), IdentityId=([a-f0-9-]+)/;
     }
 
     test(line) {

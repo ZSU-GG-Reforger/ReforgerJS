@@ -7,10 +7,11 @@ class DBLogStats {
     this.config = config;
     this.name = "DBLogStats Plugin";
     this.interval = null;
-    this.logIntervalMinutes = 15; // default interval (minutes)
+    this.logIntervalMinutes = 15; 
     this.serverInstance = null;
     this.folderPath = null;
     this.tableName = null;
+    this.serverId = null;
   }
 
   async prepareToMount(serverInstance) {
@@ -18,7 +19,6 @@ class DBLogStats {
     this.serverInstance = serverInstance;
 
     try {
-      // Check if MySQL connector is enabled
       if (
         !this.config.connectors ||
         !this.config.connectors.mysql ||
@@ -32,19 +32,16 @@ class DBLogStats {
         return;
       }
 
-      // Retrieve plugin configuration
       const pluginConfig = this.config.plugins.find(plugin => plugin.plugin === "DBLogStats");
       if (!pluginConfig) {
         logger.warn(`[${this.name}] Plugin configuration not found. Plugin disabled.`);
         return;
       }
 
-      // Use configured interval if provided
       if (typeof pluginConfig.interval === "number" && pluginConfig.interval > 0) {
         this.logIntervalMinutes = pluginConfig.interval;
       }
 
-      // Check and set the folder path
       if (!pluginConfig.path) {
         logger.warn(`[${this.name}] 'path' not specified in config. Plugin disabled.`);
         return;
@@ -57,19 +54,23 @@ class DBLogStats {
         return;
       }
 
-      // Get the table name from config
       if (!pluginConfig.tableName) {
         logger.warn(`[${this.name}] 'tableName' not specified in config. Plugin disabled.`);
         return;
       }
       this.tableName = pluginConfig.tableName;
 
-      // Create/ensure database schema
-      await this.setupSchema();
+      if (!this.config.server || !this.config.server.id) {
+        logger.info(`[${this.name}] 'server.id' not found in config. Multi-server stats will not be available.`);
+      } else {
+        this.serverId = this.config.server.id;
+      }
 
-      // Start the logging interval
+      await this.setupSchema();
+      await this.migrateSchema();
+
       this.startLogging();
-      logger.info(`[${this.name}] Initialized and started logging stats every ${this.logIntervalMinutes} minutes.`);
+      logger.info(`[${this.name}] Initialized and started logging stats every ${this.logIntervalMinutes} minutes for server ID: ${this.serverId || 'undefined'}.`);
     } catch (error) {
       logger.error(`[${this.name}] Error during initialization: ${error.message}`);
     }
@@ -115,6 +116,10 @@ class DBLogStats {
         crime_acceleration FLOAT DEFAULT 0,
         kick_session_duration FLOAT DEFAULT 0,
         kick_streak FLOAT DEFAULT 0,
+        lightban_session_duration FLOAT DEFAULT 0,
+        lightban_streak FLOAT DEFAULT 0,
+        heavyban_kick_session_duration FLOAT DEFAULT 0,
+        heavyban_streak FLOAT DEFAULT 0,
         created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `;
@@ -129,16 +134,180 @@ class DBLogStats {
     }
   }
 
+  async migrateSchema() {
+    try {
+      const alterQueries = [];
+      const connection = await process.mysqlPool.getConnection();
+      
+      const [columns] = await connection.query(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME = '${this.tableName}'
+      `);
+      
+      const columnNames = columns.map(col => col.COLUMN_NAME);
+      
+      if (!columnNames.includes('server_id')) {
+        alterQueries.push('ADD COLUMN server_id VARCHAR(255) NULL');
+      }
+
+      if (!columnNames.includes('lightban_session_duration')) {
+        alterQueries.push('ADD COLUMN lightban_session_duration FLOAT DEFAULT 0');
+      }
+      if (!columnNames.includes('lightban_streak')) {
+        alterQueries.push('ADD COLUMN lightban_streak FLOAT DEFAULT 0');
+      }
+      if (!columnNames.includes('heavyban_kick_session_duration')) {
+        alterQueries.push('ADD COLUMN heavyban_kick_session_duration FLOAT DEFAULT 0');
+      }
+      if (!columnNames.includes('heavyban_streak')) {
+        alterQueries.push('ADD COLUMN heavyban_streak FLOAT DEFAULT 0');
+      }
+
+      const [indexes] = await connection.query(`
+        SELECT INDEX_NAME
+        FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = '${this.tableName}'
+        AND COLUMN_NAME = 'playerUID'
+        AND NON_UNIQUE = 0
+      `);
+
+      if (indexes.length > 0 && indexes[0].INDEX_NAME === 'playerUID') {
+        alterQueries.push('DROP INDEX playerUID');
+        alterQueries.push('ADD UNIQUE INDEX playerUID_server_id (playerUID, server_id)');
+      }
+      
+      if (alterQueries.length > 0) {
+        const alterQuery = `ALTER TABLE ${this.tableName} ${alterQueries.join(', ')}`;
+        await connection.query(alterQuery);
+        logger.info(`DBLog: Migrated stats table with new columns: ${alterQueries.join(', ')}`);
+      } else {
+        logger.info(`DBLog: No migration needed for stats table.`);
+      }
+      
+      connection.release();
+    } catch (error) {
+      logger.error(`Error migrating schema: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async clearTable() {
+    logger.verbose(`[${this.name}] Clearing table '${this.tableName}'...`);
+    try {
+      const connection = await process.mysqlPool.getConnection();
+      await connection.query(`DELETE FROM \`${this.tableName}\``);
+      connection.release();
+      logger.verbose(`[${this.name}] Cleared table '${this.tableName}'.`);
+    } catch (error) {
+      logger.error(`[${this.name}] Failed to clear table: ${error.message}`);
+    }
+  }
+
   startLogging() {
     const intervalMs = this.logIntervalMinutes * 60 * 1000;
-    // Run immediately, then on each interval.
     this.logStats();
     this.interval = setInterval(() => this.logStats(), intervalMs);
     logger.verbose(`[${this.name}] Started logging every ${this.logIntervalMinutes} minutes.`);
   }
 
   async logStats() {
+    const playerStatsHash = await this.collectStats();
+    if (!playerStatsHash || Object.keys(playerStatsHash).length === 0) {
+      logger.verbose(`[${this.name}] No player stats to log.`);
+      return;
+    }
+
+    const columns = [
+      'playerUID', 'server_id', 'level', 'level_experience', 'session_duration', 
+      'sppointss0', 'sppointss1', 'sppointss2', 'warcrimes', 'distance_walked', 
+      'kills', 'ai_kills', 'shots', 'grenades_thrown', 'friendly_kills', 
+      'friendly_ai_kills', 'deaths', 'distance_driven', 'points_as_driver_of_players', 
+      'players_died_in_vehicle', 'roadkills', 'friendly_roadkills', 'ai_roadkills', 
+      'friendly_ai_roadkills', 'distance_as_occupant', 'bandage_self', 
+      'bandage_friendlies', 'tourniquet_self', 'tourniquet_friendlies', 
+      'saline_self', 'saline_friendlies', 'morphine_self', 'morphine_friendlies', 
+      'warcrime_harming_friendlies', 'crime_acceleration', 'kick_session_duration', 
+      'kick_streak', 'lightban_session_duration', 'lightban_streak', 
+      'heavyban_kick_session_duration', 'heavyban_streak'
+    ];
+
+    const updateStatements = columns
+      .filter(col => col !== 'playerUID' && col !== 'server_id')
+      .map(col => `${col} = VALUES(${col})`)
+      .join(', ');
+
+    const BATCH_SIZE = 500;
+    const playerEntries = Object.entries(playerStatsHash);
+    for (let i = 0; i < playerEntries.length; i += BATCH_SIZE) {
+      const batch = playerEntries.slice(i, i + BATCH_SIZE);
+      const values = [];
+      const placeholders = [];
+      for (const [playerUID, stats] of batch) {
+        placeholders.push(`(${Array(columns.length).fill('?').join(', ')})`);
+        values.push(
+          playerUID,
+          this.serverId || null,
+          stats.level || 0,
+          stats.level_experience || 0,
+          stats.session_duration || 0,
+          stats.sppointss0 || 0,
+          stats.sppointss1 || 0,
+          stats.sppointss2 || 0,
+          stats.warcrimes || 0,
+          stats.distance_walked || 0,
+          stats.kills || 0,
+          stats.ai_kills || 0,
+          stats.shots || 0,
+          stats.grenades_thrown || 0,
+          stats.friendly_kills || 0,
+          stats.friendly_ai_kills || 0,
+          stats.deaths || 0,
+          stats.distance_driven || 0,
+          stats.points_as_driver_of_players || 0,
+          stats.players_died_in_vehicle || 0,
+          stats.roadkills || 0,
+          stats.friendly_roadkills || 0,
+          stats.ai_roadkills || 0,
+          stats.friendly_ai_roadkills || 0,
+          stats.distance_as_occupant || 0,
+          stats.bandage_self || 0,
+          stats.bandage_friendlies || 0,
+          stats.tourniquet_self || 0,
+          stats.tourniquet_friendlies || 0,
+          stats.saline_self || 0,
+          stats.saline_friendlies || 0,
+          stats.morphine_self || 0,
+          stats.morphine_friendlies || 0,
+          stats.warcrime_harming_friendlies || 0,
+          stats.crime_acceleration || 0,
+          stats.kick_session_duration || 0,
+          stats.kick_streak || 0,
+          stats.lightban_session_duration || 0,
+          stats.lightban_streak || 0,
+          stats.heavyban_kick_session_duration || 0,
+          stats.heavyban_streak || 0
+        );
+      }
+      const query = `
+        INSERT INTO ${this.tableName} (${columns.join(', ')})
+        VALUES ${placeholders.join(', ')}
+        ON DUPLICATE KEY UPDATE ${updateStatements}
+      `;
+      const connection = await process.mysqlPool.getConnection();
+      const [result] = await connection.execute(query, values);
+      await connection.release();
+    }
+    return true;
+  }
+
+  async collectStats() {
     logger.verbose(`[${this.name}] Initiating stats logging cycle.`);
+
+    const playerStatData = {};
+
     try {
       const files = await fs.readdir(this.folderPath);
       const statFiles = files.filter(file => /^PlayerData\..+\.json$/.test(file));
@@ -147,7 +316,6 @@ class DBLogStats {
         return;
       }
 
-      // Process files sequentially
       for (const file of statFiles) {
         const match = /^PlayerData\.(.+)\.json$/.exec(file);
         if (!match) continue;
@@ -176,183 +344,98 @@ class DBLogStats {
           logger.warn(`[${this.name}] Not enough stat entries in file ${file}. Expected at least 35, got ${stats.length}.`);
           continue;
         }
-        const trimmedStats = stats.slice(0, 35);
+        const trimmedStats = stats.slice(0, 39);
         const [
-          level,                         // index 0
-          level_experience,              // 1
-          session_duration,              // 2
-          sppointss0,                    // 3
-          sppointss1,                    // 4
-          sppointss2,                    // 5
-          warcrimes,                     // 6
-          distance_walked,               // 7
-          kills,                         // 8
-          ai_kills,                      // 9
-          shots,                         // 10
-          grenades_thrown,               // 11
-          friendly_kills,                // 12
-          friendly_ai_kills,             // 13
-          deaths,                        // 14
-          distance_driven,               // 15
-          points_as_driver_of_players,   // 16
-          players_died_in_vehicle,       // 17
-          roadkills,                     // 18
-          friendly_roadkills,            // 19
-          ai_roadkills,                  // 20
-          friendly_ai_roadkills,         // 21
-          distance_as_occupant,          // 22
-          bandage_self,                  // 23
-          bandage_friendlies,            // 24
-          tourniquet_self,               // 25
-          tourniquet_friendlies,         // 26
-          saline_self,                   // 27
-          saline_friendlies,             // 28
-          morphine_self,                 // 29
-          morphine_friendlies,           // 30
-          warcrime_harming_friendlies,   // 31
-          crime_acceleration,            // 32
-          kick_session_duration,         // 33
-          kick_streak                    // 34
+          level,
+          level_experience,
+          session_duration,
+          sppointss0,
+          sppointss1,
+          sppointss2,
+          warcrimes,
+          distance_walked,
+          kills,
+          ai_kills,
+          shots,
+          grenades_thrown,
+          friendly_kills,
+          friendly_ai_kills,
+          deaths,
+          distance_driven,
+          points_as_driver_of_players,
+          players_died_in_vehicle,
+          roadkills,
+          friendly_roadkills,
+          ai_roadkills,
+          friendly_ai_roadkills,
+          distance_as_occupant,
+          bandage_self,
+          bandage_friendlies,
+          tourniquet_self,
+          tourniquet_friendlies,
+          saline_self,
+          saline_friendlies,
+          morphine_self,
+          morphine_friendlies,
+          warcrime_harming_friendlies,
+          crime_acceleration,
+          kick_session_duration,
+          kick_streak,
+          lightban_session_duration,
+          lightban_streak,
+          heavyban_kick_session_duration,
+          heavyban_streak
         ] = trimmedStats;
 
-        try {
-          const [rows] = await process.mysqlPool.query(
-            `SELECT * FROM \`${this.tableName}\` WHERE playerUID = ?`,
-            [playerUID]
-          );
-          if (rows.length > 0) {
-            const updateQuery = `
-              UPDATE \`${this.tableName}\`
-              SET level = ?,
-                  level_experience = ?,
-                  session_duration = ?,
-                  sppointss0 = ?,
-                  sppointss1 = ?,
-                  sppointss2 = ?,
-                  warcrimes = ?,
-                  distance_walked = ?,
-                  kills = ?,
-                  ai_kills = ?,
-                  shots = ?,
-                  grenades_thrown = ?,
-                  friendly_kills = ?,
-                  friendly_ai_kills = ?,
-                  deaths = ?,
-                  distance_driven = ?,
-                  points_as_driver_of_players = ?,
-                  players_died_in_vehicle = ?,
-                  roadkills = ?,
-                  friendly_roadkills = ?,
-                  ai_roadkills = ?,
-                  friendly_ai_roadkills = ?,
-                  distance_as_occupant = ?,
-                  bandage_self = ?,
-                  bandage_friendlies = ?,
-                  tourniquet_self = ?,
-                  tourniquet_friendlies = ?,
-                  saline_self = ?,
-                  saline_friendlies = ?,
-                  morphine_self = ?,
-                  morphine_friendlies = ?,
-                  warcrime_harming_friendlies = ?,
-                  crime_acceleration = ?,
-                  kick_session_duration = ?,
-                  kick_streak = ?
-              WHERE playerUID = ?
-            `;
-            const updateValues = [
-              level,
-              level_experience,
-              session_duration,
-              sppointss0,
-              sppointss1,
-              sppointss2,
-              warcrimes,
-              distance_walked,
-              kills,
-              ai_kills,
-              shots,
-              grenades_thrown,
-              friendly_kills,
-              friendly_ai_kills,
-              deaths,
-              distance_driven,
-              points_as_driver_of_players,
-              players_died_in_vehicle,
-              roadkills,
-              friendly_roadkills,
-              ai_roadkills,
-              friendly_ai_roadkills,
-              distance_as_occupant,
-              bandage_self,
-              bandage_friendlies,
-              tourniquet_self,
-              tourniquet_friendlies,
-              saline_self,
-              saline_friendlies,
-              morphine_self,
-              morphine_friendlies,
-              warcrime_harming_friendlies,
-              crime_acceleration,
-              kick_session_duration,
-              kick_streak,
-              playerUID
-            ];
-            await process.mysqlPool.query(updateQuery, updateValues);
-          } else {
-            const insertQuery = `
-              INSERT INTO \`${this.tableName}\`
-              (playerUID, level, level_experience, session_duration, sppointss0, sppointss1, sppointss2, warcrimes, distance_walked, kills, ai_kills, shots, grenades_thrown, friendly_kills, friendly_ai_kills, deaths, distance_driven, points_as_driver_of_players, players_died_in_vehicle, roadkills, friendly_roadkills, ai_roadkills, friendly_ai_roadkills, distance_as_occupant, bandage_self, bandage_friendlies, tourniquet_self, tourniquet_friendlies, saline_self, saline_friendlies, morphine_self, morphine_friendlies, warcrime_harming_friendlies, crime_acceleration, kick_session_duration, kick_streak)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `;
-            const insertValues = [
-              playerUID,
-              level,
-              level_experience,
-              session_duration,
-              sppointss0,
-              sppointss1,
-              sppointss2,
-              warcrimes,
-              distance_walked,
-              kills,
-              ai_kills,
-              shots,
-              grenades_thrown,
-              friendly_kills,
-              friendly_ai_kills,
-              deaths,
-              distance_driven,
-              points_as_driver_of_players,
-              players_died_in_vehicle,
-              roadkills,
-              friendly_roadkills,
-              ai_roadkills,
-              friendly_ai_roadkills,
-              distance_as_occupant,
-              bandage_self,
-              bandage_friendlies,
-              tourniquet_self,
-              tourniquet_friendlies,
-              saline_self,
-              saline_friendlies,
-              morphine_self,
-              morphine_friendlies,
-              warcrime_harming_friendlies,
-              crime_acceleration,
-              kick_session_duration,
-              kick_streak
-            ];
-            await process.mysqlPool.query(insertQuery, insertValues);
-          }
-        } catch (dbError) {
-          logger.error(`[${this.name}] Database error processing UID ${playerUID}: ${dbError.message}`);
-        }
+        playerStatData[playerUID] = {
+          level,
+          level_experience,
+          session_duration,
+          sppointss0,
+          sppointss1,
+          sppointss2,
+          warcrimes,
+          distance_walked,
+          kills,
+          ai_kills,
+          shots,
+          grenades_thrown,
+          friendly_kills,
+          friendly_ai_kills,
+          deaths,
+          distance_driven,
+          points_as_driver_of_players,
+          players_died_in_vehicle,
+          roadkills,
+          friendly_roadkills,
+          ai_roadkills,
+          friendly_ai_roadkills,
+          distance_as_occupant,
+          bandage_self,
+          bandage_friendlies,
+          tourniquet_self,
+          tourniquet_friendlies,
+          saline_self,
+          saline_friendlies,
+          morphine_self,
+          morphine_friendlies,
+          warcrime_harming_friendlies,
+          crime_acceleration,
+          kick_session_duration,
+          kick_streak,
+          lightban_session_duration,
+          lightban_streak,
+          heavyban_kick_session_duration,
+          heavyban_streak
+        };
       }
-      logger.info(`[${this.name}] Stats logging cycle completed.`);
     } catch (error) {
       logger.error(`[${this.name}] Error during stats logging: ${error.message}`);
+      return;
     }
+
+    logger.verbose(`[${this.name}] Collected stats for ${Object.keys(playerStatData).length} players.`);
+    return playerStatData;
   }
 
   async cleanup() {
