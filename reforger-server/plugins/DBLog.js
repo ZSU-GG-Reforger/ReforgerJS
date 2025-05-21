@@ -9,7 +9,7 @@ class DBLog {
     this.isInitialized = false;
     this.serverInstance = null;
     this.playerCache = new Map();
-    this.cacheTTL = 10 * 60 * 1000; 
+    this.cacheTTL = 10 * 60 * 1000;
   }
 
   async prepareToMount(serverInstance) {
@@ -45,23 +45,23 @@ class DBLog {
       this.startLogging();
       this.isInitialized = true;
     } catch (error) {
-        logger.error(`Error initializing DBLog: ${error.message}`);
+      logger.error(`Error initializing DBLog: ${error.message}`);
     }
   }
 
   async setupSchema() {
     const createTableQuery = `
-      CREATE TABLE IF NOT EXISTS players (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        playerName VARCHAR(255) NULL,
-        playerIP VARCHAR(255) NULL,
-        playerUID VARCHAR(255) NOT NULL UNIQUE,
-        beGUID VARCHAR(255) NULL,
-        steamID VARCHAR(255) NULL,
-        device VARCHAR(50) NULL,
-        created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
+    CREATE TABLE IF NOT EXISTS players (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      playerName VARCHAR(255) NULL,
+      playerIP VARCHAR(255) NULL,
+      playerUID VARCHAR(255) NOT NULL UNIQUE,
+      beGUID VARCHAR(255) NULL,
+      steamID VARCHAR(255) NULL,
+      device VARCHAR(50) NULL,
+      created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  `;
 
     try {
       const connection = await process.mysqlPool.getConnection();
@@ -75,36 +75,54 @@ class DBLog {
   async migrateSchema() {
     try {
       const connection = await process.mysqlPool.getConnection();
-      
+
       const [columns] = await connection.query(`
         SELECT COLUMN_NAME 
         FROM INFORMATION_SCHEMA.COLUMNS 
         WHERE TABLE_SCHEMA = DATABASE() 
         AND TABLE_NAME = 'players'
       `);
-      
-      const columnNames = columns.map(col => col.COLUMN_NAME);
+
+      const columnNames = columns.map((col) => col.COLUMN_NAME);
       const alterQueries = [];
-      
-      if (!columnNames.includes('steamID')) {
-        alterQueries.push('ADD COLUMN steamID VARCHAR(255) NULL');
+
+      if (!columnNames.includes("steamID")) {
+        alterQueries.push("ADD COLUMN steamID VARCHAR(255) NULL");
       }
-      
-      if (!columnNames.includes('device')) {
-        alterQueries.push('ADD COLUMN device VARCHAR(50) NULL');
+
+      if (!columnNames.includes("device")) {
+        alterQueries.push("ADD COLUMN device VARCHAR(50) NULL");
       }
-      
+
       if (alterQueries.length > 0) {
-        const alterQuery = `ALTER TABLE players ${alterQueries.join(', ')}`;
+        const alterQuery = `ALTER TABLE players ${alterQueries.join(", ")}`;
         await connection.query(alterQuery);
-          logger.info(`DBLog: Migrated players table with new columns: ${alterQueries.join(', ')}`);
-        
+        logger.info(
+          `DBLog: Migrated players table with new columns: ${alterQueries.join(
+            ", "
+          )}`
+        );
       }
-      
+
+      const [tableResult] = await connection.query(`
+      SELECT TABLE_COLLATION 
+      FROM information_schema.TABLES 
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'players'
+    `);
+
+      if (
+        tableResult.length > 0 &&
+        !tableResult[0].TABLE_COLLATION.startsWith("utf8mb4")
+      ) {
+        logger.info(`DBLog: Migrating players table to utf8mb4...`);
+        await connection.query(`
+        ALTER TABLE players CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+      `);
+      }
+
       connection.release();
     } catch (error) {
-        logger.error(`Error migrating schema: ${error.message}`);
-      
+      logger.error(`Error migrating schema: ${error.message}`);
       throw error;
     }
   }
@@ -133,8 +151,10 @@ class DBLog {
     }
 
     try {
-      if (player.device === 'Console' && player.steamID) {
-        logger.warn(`Unexpected: Console player ${player.name} has a steamID: ${player.steamID}. This shouldn't happen.`);
+      if (player.device === "Console" && player.steamID) {
+        logger.warn(
+          `Unexpected: Console player ${player.name} has a steamID: ${player.steamID}. This shouldn't happen.`
+        );
       }
 
       if (this.playerCache.has(player.uid)) {
@@ -173,7 +193,10 @@ class DBLog {
           updateFields.beGUID = player.beGUID;
           needsUpdate = true;
         }
-        if (player.steamID !== undefined && dbPlayer.steamID !== player.steamID) {
+        if (
+          player.steamID !== undefined &&
+          dbPlayer.steamID !== player.steamID
+        ) {
           updateFields.steamID = player.steamID;
           needsUpdate = true;
         }
@@ -219,8 +242,7 @@ class DBLog {
         this.playerCache.delete(player.uid);
       }, this.cacheTTL);
     } catch (error) {
-        logger.error(`Error processing player ${player.name}: ${error.message}`);
-      
+      logger.error(`Error processing player ${player.name}: ${error.message}`);
     }
   }
 
