@@ -443,6 +443,12 @@ class ReforgerServer extends EventEmitter {
       logger.info(`Game ended at ${data.time}`);
       this.emit("gameEnd", data);
     });
+
+    // Application Hang event
+    this.logParser.on("applicationHang", (data) => {
+      logger.info(`Aplication Hang at ${data.time}`);
+      this.emit("applicationHang", data);
+    });
   }
 
   handleRconDisconnection() {

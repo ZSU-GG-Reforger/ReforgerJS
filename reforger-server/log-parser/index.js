@@ -57,6 +57,7 @@ class LogParser extends EventEmitter {
       const ServerHealthHandler = require('./regexHandlers/serverHealth');
       const GameStartHandler = require('./regexHandlers/gameStart');
       const GameEndHandler = require('./regexHandlers/gameEnd');
+      const ApplicationHangHandler = require('./regexHandlers/applicationHang');
       const SATBaseCaptureHandler = require('./regexHandlers/SATBaseCapture');
       const SATPlayerKilledHandler = require('./regexHandlers/SATPlayerKilled');
       const SATAdminActionHandler = require('./regexHandlers/SATAdminAction');
@@ -72,6 +73,7 @@ class LogParser extends EventEmitter {
       this.serverHealthHandler = new ServerHealthHandler();
       this.gameStartHandler = new GameStartHandler();
       this.gameEndHandler = new GameEndHandler();
+      this.ApplicationHangHandler = new ApplicationHangHandler();
       this.satBaseCaptureHandler = new SATBaseCaptureHandler();
       this.satPlayerKilledHandler = new SATPlayerKilledHandler();
       this.satAdminActionHandler = new SATAdminActionHandler();
@@ -89,6 +91,7 @@ class LogParser extends EventEmitter {
       this.serverHealthHandler.on('serverHealth', data => this.emit('serverHealth', data));
       this.gameStartHandler.on('gameStart', data => this.emit('gameStart', data));
       this.gameEndHandler.on('gameEnd', data => this.emit('gameEnd', data));
+      this.ApplicationHangHandler.on('applicationHang', data => this.emit('applicationHang', data));
       this.satBaseCaptureHandler.on('baseCapture', data => this.emit('baseCapture', data));
       this.satPlayerKilledHandler.on('playerKilled', data => this.emit('playerKilled', data));
       this.satAdminActionHandler.on('adminAction', data => this.emit('adminAction', data));
@@ -134,6 +137,11 @@ class LogParser extends EventEmitter {
     }
     if (this.gameEndHandler && this.gameEndHandler.test(line)) {
       this.gameEndHandler.processLine(line);
+      this.matchingLinesPerMinute++;
+      return;
+    }
+    if (this.ApplicationHangHandler && this.ApplicationHangHandler.test(line)) {
+      this.ApplicationHangHandler.processLine(line);
       this.matchingLinesPerMinute++;
       return;
     }
