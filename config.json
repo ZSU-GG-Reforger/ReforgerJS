@@ -24,6 +24,13 @@
       "password": "FTP Password"
     }
   },
+  "customParsers": {
+    "wcs-commands": {
+      "enabled": false,
+      "logDir": "/path/to/WCS_Commands/events",
+      "fileName": "events.txt"
+    }
+  },
   "consoleLogLevel": "info",
   "outputLogLevel": "info",
   "connectors": {
