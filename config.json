@@ -167,6 +167,26 @@
       "teamkillLimit": 4,
       "timeWindowMinutes": 20,
       "warningMessage": "Watch your fire, Teamkilling will result in your removal from the server | THIS WARNING NEEDS GM TOOLS MOD INSTALLED"
+    },
+    {
+      "plugin": "BMDevTest",
+      "enabled": false,
+      "testUUID": "Test player UUID",
+      "testFlags": false,
+      "testFlagID": "Test FlagID",
+      "testNotes": false,
+      "testNote": "TestNoteMessage",
+      "testBans": false,
+      "testBanDuration": 24,
+      "testBanReason": "Test- banned for {{duration}} - appeal at https://discord.gg/test",
+      "testBanMessage": "BanMessageNotes",
+      "testBanAutoAddEnabled": false,
+      "testBanNativeEnabled": false,
+      "testBanOrgWide": true,
+      "testBanID": "banIDHere",
+      "testEditBan": false,
+      "testBanEditMessage": "BanMessageNotes - Edited",
+      "testRemoveBan": false
     }
   ],
   "github": {
