@@ -145,6 +145,21 @@
         "thumbnail": false,
         "thumbnailURL": "https://IMAGE_URL_HERE.png"
       }
+    },
+    {
+      "plugin": "WCS_DBLog",
+      "enabled": false
+    },
+    {
+      "plugin": "WCS_DBEvents",
+      "enabled": false
+    },
+    {
+      "plugin": "WCS_TKAutokick",
+      "enabled": false,
+      "teamkillLimit": 4,
+      "timeWindowMinutes": 20,
+      "warningMessage": "Watch your fire, Teamkilling will result in your removal from the server | THIS WARNING NEEDS GM TOOLS MOD INSTALLED"
     }
   ],
   "github": {
