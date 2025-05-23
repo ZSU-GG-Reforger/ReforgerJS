@@ -24,6 +24,13 @@
       "password": "FTP Password"
     }
   },
+  "customParsers": {
+    "wcs-commands": {
+      "enabled": false,
+      "logDir": "/path/to/WCS_Commands/events",
+      "fileName": "events.txt"
+    }
+  },
   "consoleLogLevel": "info",
   "outputLogLevel": "info",
   "connectors": {
@@ -49,16 +56,9 @@
     "roleName3": "discord RoleID"
   },
   "roleLevels": {
-    "1": [
-      "roleName",
-      "roleName1"
-    ],
-    "2": [
-      "roleName2"
-    ],
-    "3": [
-      "roleName3"
-    ]
+    "1": ["roleName", "roleName1"],
+    "2": ["roleName2"],
+    "3": ["roleName3"]
   },
   "commands": [
     {
@@ -139,12 +139,27 @@
       "showMemoryUsage": false,
       "discordBotStatus": true,
       "embed": {
-          "title": "Arma Reforger Server Status",
-          "color": "#00FF00",
-          "footer": "ReforgerJS",
-          "thumbnail": false,
-          "thumbnailURL": "https://IMAGE_URL_HERE.png"
+        "title": "Arma Reforger Server Status",
+        "color": "#00FF00",
+        "footer": "ReforgerJS",
+        "thumbnail": false,
+        "thumbnailURL": "https://IMAGE_URL_HERE.png"
       }
+    },
+    {
+      "plugin": "WCS_DBLog",
+      "enabled": false
+    },
+    {
+      "plugin": "WCS_DBEvents",
+      "enabled": false
+    },
+    {
+      "plugin": "WCS_TKAutokick",
+      "enabled": false,
+      "teamkillLimit": 4,
+      "timeWindowMinutes": 20,
+      "warningMessage": "Watch your fire, Teamkilling will result in your removal from the server | THIS WARNING NEEDS GM TOOLS MOD INSTALLED"
     }
   ]
 }

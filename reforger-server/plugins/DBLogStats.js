@@ -121,8 +121,8 @@ class DBLogStats {
         heavyban_kick_session_duration FLOAT DEFAULT 0,
         heavyban_streak FLOAT DEFAULT 0,
         created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
+    ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  `;
     try {
       const connection = await process.mysqlPool.getConnection();
       await connection.query(createTableQuery);
@@ -173,6 +173,16 @@ class DBLogStats {
         AND COLUMN_NAME = 'playerUID'
         AND NON_UNIQUE = 0
       `);
+
+          const [tableResult] = await connection.query(`
+      SELECT TABLE_COLLATION 
+      FROM information_schema.TABLES 
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '${this.tableName}'
+    `);
+    
+    if (tableResult.length > 0 && !tableResult[0].TABLE_COLLATION.startsWith("utf8mb4")) {
+      alterQueries.push('CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+    }
 
       if (indexes.length > 0 && indexes[0].INDEX_NAME === 'playerUID') {
         alterQueries.push('DROP INDEX playerUID');
