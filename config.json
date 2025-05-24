@@ -93,6 +93,16 @@
       "shutdown": 3,
       "restart": 3,
       "kick": 3
+    },
+    {
+      "command": "killhistorywcs",
+      "enabled": false,
+      "commandLevel": 3
+    },
+    {
+      "command": "messagehistorywcs",
+      "enabled": false,
+      "commandLevel": 3
     }
   ],
   "plugins": [
@@ -155,18 +165,52 @@
     },
     {
       "plugin": "WCS_DBLog",
-      "enabled": false
+      "enabled": false,
+      "requiredMods": "WCS_core, WCS_Commands"
     },
     {
       "plugin": "WCS_DBEvents",
-      "enabled": false
+      "enabled": false,
+      "requiredMods": "WCS_core, WCS_Commands"
     },
     {
       "plugin": "WCS_TKAutokick",
       "enabled": false,
+      "requiredMods": "GM Tools, WCS_core, WCS_Commands",
       "teamkillLimit": 4,
       "timeWindowMinutes": 20,
-      "warningMessage": "Watch your fire, Teamkilling will result in your removal from the server | THIS WARNING NEEDS GM TOOLS MOD INSTALLED"
+      "warningMessage": "Watch your fire, Teamkilling will result in your removal from the server"
+    },
+    {
+      "plugin": "WCS_LogTK",
+      "enabled": false,
+      "requiredMods": "WCS_core, WCS_Commands",
+      "channel": "your-discord-channel-id-here"
+    },
+    {
+      "plugin": "WCS_LogChat",
+      "enabled": false,
+      "requiredMods": "WCS_core, WCS_Commands",
+      "channel": "your-discord-channel-id-here"
+    },
+    {
+      "plugin": "WCS_TK_Punishments",
+      "enabled": false,
+      "requiredMods": "GM Tools, WCS_core, WCS_Commands",
+      "teamkillKickLimit": 4,
+      "logKicks": true,
+      "logKickMessage": "Player was kicked for teamkilling\nReforgerJS Automated System",
+      "warnEveryTK": true,
+      "warningMessage": "Watch your fire, Teamkilling will result in your removal from the server",
+      "enableBMBans": true,
+      "banKickThreshold": 2,
+      "banKickLimit": 14,
+      "BanDuration": 24,
+      "BanReason": "Intentional Teamkilling - banned for {{duration}} - appeal at https://discord.gg/LinkToDiscord",
+      "BanMessage": "Banned for Teamkilling. ReforgerJS Automated System",
+      "BanAutoAddEnabled": false,
+      "BanNativeEnabled": false,
+      "BanOrgWide": true
     },
     {
       "plugin": "BMDevTest",
