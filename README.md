@@ -1,3 +1,9 @@
+<div align="center">
+
+<img src="reforger-server/utils/ReforgerJSlogo.png" alt="Logo" width="800"/>
+
+</div>
+
 # ReforgerJS
 
 ## **About**
