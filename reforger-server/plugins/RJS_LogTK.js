@@ -1,9 +1,9 @@
 const { EmbedBuilder } = require("discord.js");
 
-class WCS_LogChat {
+class RJS_LogTK {
   constructor(config) {
     this.config = config;
-    this.name = "WCS_LogChat Plugin";
+    this.name = "RJS_LogTK Plugin";
     this.serverInstance = null;
     this.discordClient = null;
     this.channelOrThread = null;
@@ -32,7 +32,7 @@ class WCS_LogChat {
 
     try {
       const pluginConfig = this.config.plugins.find(
-        (plugin) => plugin.plugin === "WCS_LogChat"
+        (plugin) => plugin.plugin === "RJS_LogTK"
       );
       if (!pluginConfig || !pluginConfig.channel) {
         logger.warn(`[${this.name}] Missing 'channel' ID in plugin config. Plugin disabled.`);
@@ -71,70 +71,72 @@ class WCS_LogChat {
         return;
       }
 
-      this.serverInstance.on("chatMessageEvent", this.handleChatMessage.bind(this));
+      this.serverInstance.on("rjsPlayerKilledEvent", this.handlePlayerKilled.bind(this));
       
-      logger.info(`[${this.name}] Initialized and listening to chatMessageEvent events.`);
+      logger.info(`[${this.name}] Initialized and listening to rjsPlayerKilledEvent events.`);
     } catch (error) {
       logger.error(`[${this.name}] Error during initialization: ${error.stack}`);
     }
   }
 
-  getChannelColor(channelType) {
-    const colors = {
-      'Global': '#FF0000',    // Red
-      'Faction': '#0099FF',   // Blue
-      'Group': '#00FF00',     // Green
-      'Vehicle': '#FF9900',   // Orange
-      'Local': '#9966FF',     // Purple
-      'Unknown': '#808080'    // Gray
-    };
-    return colors[channelType] || colors['Unknown'];
-  }
-
-
-
-  async handleChatMessage(data) {
-    if (!data || !data.message) {
+  async handlePlayerKilled(data) {
+    if (!data || !data.kill || (!data.kill.friendlyFire && !data.kill.teamKill)) {
       return;
     }
 
-    const playerId = data?.playerId || "Unknown ID";
-    const playerName = data?.playerName || "Unknown Player";
-    const playerGUID = data?.playerGUID || "Unknown GUID";
-    const channelType = data?.channelType || "Unknown";
-    const message = data?.message || "";
+    const killerName = data?.killer?.name || "Unknown Killer";
+    const killerId = data?.killer?.id || "Unknown ID";
+    const killerBiId = data?.killer?.biId || "Unknown BiID";
+    const killerFaction = data?.killer?.factionType || "Unknown Faction";
+    
+    const victimName = data?.victim?.name || "Unknown Victim";
+    const victimId = data?.victim?.id || "Unknown ID";
+    const victimBiId = data?.victim?.biId || "Unknown BiID";
+    const victimFaction = data?.victim?.factionType || "Unknown Faction";
+    
+    const weapon = data?.kill?.weapon || "Unknown";
+    const distance = data?.kill?.distance || 0;
+    const killType = data?.kill?.type || "Unknown";
 
-    const channelColor = this.getChannelColor(channelType);
+    let title = "⚠️ Friendly Fire Incident";
+    let color = "#FF6B35"; 
+    
+    if (data.kill.teamKill) {
+      title = "🚨 Team Kill Incident";
+      color = "#FF0000";
+    }
 
     const embed = new EmbedBuilder()
-      .setTitle(`Chat Message - ${channelType}`)
+      .setTitle(title)
       .setDescription(`**Server:** ${this.config.server.name}`)
-      .setColor(channelColor)
+      .setColor(color)
       .addFields(
         {
-          name: "👤 Player Info",
-          value: `**ID:** ${playerId}\n**Name:** ${playerName}\n**GUID:** ${playerGUID}`,
+          name: "🔫 Killer",
+          value: `**Name:** ${killerName}\n**ID:** ${killerId}\n**BiID:** ${killerBiId}\n**Faction:** ${killerFaction}`,
           inline: true
         },
         {
-          name: "📺 Channel",
-          value: `**Type:** ${channelType}`,
+          name: "💀 Victim", 
+          value: `**Name:** ${victimName}\n**ID:** ${victimId}\n**BiID:** ${victimBiId}\n**Faction:** ${victimFaction}`,
           inline: true
         },
         {
-          name: "💬 Message",
-          value: message,
-          inline: false
+          name: "📊 Details",
+          value: `**Weapon:** ${weapon}\n**Distance:** ${distance.toFixed(2)}m\n**Type:** ${killType}`,
+          inline: true
         }
       )
       .setFooter({
-        text: "WCS_LogChat Plugin - ReforgerJS"
+        text: weapon === "Unknown" ? 
+          "If weapon is Unknown, this could be a result of a car crash etc" :
+          "RJS_LogTK Plugin - ReforgerJS"
       })
       .setTimestamp();
 
     try {
       await this.channelOrThread.send({ embeds: [embed] });
-      logger.verbose(`[${this.name}] Logged chat message from ${playerName} in ${channelType}: ${message}`);
+      logger.info(`[${this.name}] Logged RJS ${data.kill.teamKill ? 'team kill' : 'friendly fire'}: ${killerName} killed ${victimName} with ${weapon}`);
     } catch (error) {
       logger.error(`[${this.name}] Failed to send embed: ${error.message}`);
     }
@@ -142,7 +144,7 @@ class WCS_LogChat {
 
   async cleanup() {
     if (this.serverInstance) {
-      this.serverInstance.removeAllListeners("chatMessageEvent");
+      this.serverInstance.removeAllListeners("rjsPlayerKilledEvent");
       this.serverInstance = null;
     }
     this.channelOrThread = null;
@@ -151,4 +153,4 @@ class WCS_LogChat {
   }
 }
 
-module.exports = WCS_LogChat;
+module.exports = RJS_LogTK;

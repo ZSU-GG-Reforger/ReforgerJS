@@ -3,11 +3,10 @@ const mysql = require('mysql2/promise');
 
 module.exports = async (interaction, serverInstance, discordClient, extraData = {}) => {
     const identifier = interaction.options.getString('identifier');
-    const teamkillsOnly = interaction.options.getBoolean('teamkills_only') || false;
     const serverIdOption = interaction.options.getInteger('server');
     const user = interaction.user;
     
-    logger.info(`[KillHistoryWCS Command] User: ${user.username} (ID: ${user.id}) requested kill history for identifier: ${identifier} (teamkills only: ${teamkillsOnly}) on server: ${serverIdOption || 'ALL'}`);
+    logger.info(`[MessageHistoryRJS Command] User: ${user.username} (ID: ${user.id}) requested message history for identifier: ${identifier} on server: ${serverIdOption || 'ALL'}`);
 
     if (!interaction.deferred && !interaction.replied) {
         await interaction.deferReply({ ephemeral: true });
@@ -20,11 +19,11 @@ module.exports = async (interaction, serverInstance, discordClient, extraData = 
             return;
         }
 
-        const [wcsKillsTableCheck] = await pool.query(`SHOW TABLES LIKE 'wcs_playerkills'`);
+        const [rjsChatTableCheck] = await pool.query(`SHOW TABLES LIKE 'rjs_chat'`);
         const [playersTableCheck] = await pool.query(`SHOW TABLES LIKE 'players'`);
         
-        if (!wcsKillsTableCheck.length) {
-            await interaction.editReply('WCS kills table is missing. WCS_DBEvents plugin may not be enabled.');
+        if (!rjsChatTableCheck.length) {
+            await interaction.editReply('RJS chat table is missing. RJS_DBEvents plugin may not be enabled.');
             return;
         }
 
@@ -35,39 +34,39 @@ module.exports = async (interaction, serverInstance, discordClient, extraData = 
 
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
         
-        let killerGUID;
-        let killerName;
+        let playerGUID;
+        let playerName;
 
         if (isUUID) {
-            killerGUID = identifier;
+            playerGUID = identifier;
             
             let existsQuery;
             let queryParams;
             
             if (serverIdOption) {
                 existsQuery = `SELECT (
-                    EXISTS (SELECT 1 FROM wcs_playerkills WHERE killerGUID = ? AND server_id = ?) 
+                    EXISTS (SELECT 1 FROM rjs_chat WHERE playerBiId = ? AND server_id = ?) 
                     OR EXISTS (SELECT 1 FROM players WHERE playerUID = ?)
                 ) AS existsInDB`;
-                queryParams = [killerGUID, serverIdOption.toString(), killerGUID];
+                queryParams = [playerGUID, serverIdOption.toString(), playerGUID];
             } else {
                 existsQuery = `SELECT (
-                    EXISTS (SELECT 1 FROM wcs_playerkills WHERE killerGUID = ?) 
+                    EXISTS (SELECT 1 FROM rjs_chat WHERE playerBiId = ?) 
                     OR EXISTS (SELECT 1 FROM players WHERE playerUID = ?)
                 ) AS existsInDB`;
-                queryParams = [killerGUID, killerGUID];
+                queryParams = [playerGUID, playerGUID];
             }
             
             const [[playerExists]] = await pool.query(existsQuery, queryParams);
             
             if (!playerExists.existsInDB) {
                 const serverMessage = serverIdOption ? ` on server ${serverIdOption}` : '';
-                await interaction.editReply(`Player with UUID: ${killerGUID} could not be found${serverMessage}.`);
+                await interaction.editReply(`Player with UUID: ${playerGUID} could not be found${serverMessage}.`);
                 return;
             }
             
-            const [playerRow] = await pool.query(`SELECT playerName FROM players WHERE playerUID = ?`, [killerGUID]);
-            killerName = (playerRow.length > 0) ? playerRow[0].playerName : 'Unknown Player';
+            const [playerRow] = await pool.query(`SELECT playerName FROM players WHERE playerUID = ?`, [playerGUID]);
+            playerName = (playerRow.length > 0) ? playerRow[0].playerName : 'Unknown Player';
         } else {
             const [matchingPlayers] = await pool.query(
                 `SELECT DISTINCT playerUID, playerName FROM players WHERE playerName LIKE ?`,
@@ -75,34 +74,34 @@ module.exports = async (interaction, serverInstance, discordClient, extraData = 
             );
             
             if (matchingPlayers.length === 0) {
-                const [matchingKillers] = await pool.query(
-                    `SELECT DISTINCT killerGUID, killerName FROM wcs_playerkills WHERE killerName LIKE ? AND killerGUID IS NOT NULL`,
+                const [matchingChatters] = await pool.query(
+                    `SELECT DISTINCT playerBiId, playerName FROM rjs_chat WHERE playerName LIKE ? AND playerBiId IS NOT NULL`,
                     [`%${identifier}%`]
                 );
                 
-                if (matchingKillers.length === 0) {
+                if (matchingChatters.length === 0) {
                     await interaction.editReply(`No players found with name containing: ${identifier}`);
                     return;
-                } else if (matchingKillers.length > 1) {
-                    const displayCount = Math.min(matchingKillers.length, 3);
-                    let responseMessage = `Found ${matchingKillers.length} players in kill history matching "${identifier}". `;
+                } else if (matchingChatters.length > 1) {
+                    const displayCount = Math.min(matchingChatters.length, 3);
+                    let responseMessage = `Found ${matchingChatters.length} players in chat history matching "${identifier}". `;
                     
-                    if (matchingKillers.length > 3) {
+                    if (matchingChatters.length > 3) {
                         responseMessage += `Showing first 3 results. Please refine your search or use a UUID instead.\n\n`;
                     } else {
                         responseMessage += `Please use one of the following UUIDs for a specific player:\n\n`;
                     }
                     
                     for (let i = 0; i < displayCount; i++) {
-                        const player = matchingKillers[i];
-                        responseMessage += `${i+1}. ${player.killerName} - UUID: ${player.killerGUID}\n`;
+                        const player = matchingChatters[i];
+                        responseMessage += `${i+1}. ${player.playerName} - UUID: ${player.playerBiId}\n`;
                     }
                     
                     await interaction.editReply(responseMessage);
                     return;
                 } else {
-                    killerGUID = matchingKillers[0].killerGUID;
-                    killerName = matchingKillers[0].killerName;
+                    playerGUID = matchingChatters[0].playerBiId;
+                    playerName = matchingChatters[0].playerName;
                 }
             } else if (matchingPlayers.length > 1) {
                 const displayCount = Math.min(matchingPlayers.length, 3);
@@ -122,85 +121,83 @@ module.exports = async (interaction, serverInstance, discordClient, extraData = 
                 await interaction.editReply(responseMessage);
                 return;
             } else {
-                killerGUID = matchingPlayers[0].playerUID;
-                killerName = matchingPlayers[0].playerName;
+                playerGUID = matchingPlayers[0].playerUID;
+                playerName = matchingPlayers[0].playerName;
             }
         }
 
-        let killHistoryQuery = `
+        let messageHistoryQuery = `
             SELECT 
-                victimName, victimGUID, weapon, distance, friendlyFire, timestamp, server_id
-            FROM wcs_playerkills 
-            WHERE killerGUID = ?
+                channelType, message, timestamp, server_id
+            FROM rjs_chat 
+            WHERE playerBiId = ?
         `;
         
-        let queryParams = [killerGUID];
+        let queryParams = [playerGUID];
 
         if (serverIdOption) {
-            killHistoryQuery += ` AND server_id = ?`;
+            messageHistoryQuery += ` AND server_id = ?`;
             queryParams.push(serverIdOption.toString());
         }
 
-        if (teamkillsOnly) {
-            killHistoryQuery += ` AND friendlyFire = true`;
-        }
+        messageHistoryQuery += ` ORDER BY timestamp DESC LIMIT 10`;
 
-        killHistoryQuery += ` ORDER BY timestamp DESC LIMIT 10`;
+        const [messageRows] = await pool.query(messageHistoryQuery, queryParams);
 
-        const [killRows] = await pool.query(killHistoryQuery, queryParams);
-
-        if (killRows.length === 0) {
-            const teamkillText = teamkillsOnly ? ' teamkill' : '';
+        if (messageRows.length === 0) {
             const serverMessage = serverIdOption ? ` on server ${serverIdOption}` : '';
-            await interaction.editReply(`No${teamkillText} kill history found for player: ${killerName} (${killerGUID})${serverMessage}`);
+            await interaction.editReply(`No chat message history found for player: ${playerName} (${playerGUID})${serverMessage}`);
             return;
         }
 
-        const teamkillText = teamkillsOnly ? ' Teamkill' : '';
         let serverDisplay = "";
         if (serverIdOption) {
             serverDisplay = `**Server:** ${serverIdOption}\n`;
         } else {
-            const serverList = [...new Set(killRows.map(row => row.server_id).filter(Boolean))];
+            const serverList = [...new Set(messageRows.map(row => row.server_id).filter(Boolean))];
             if (serverList.length > 0) {
                 serverDisplay = `**Servers:** ${serverList.join(', ')}\n`;
             }
         }
 
         const embed = new EmbedBuilder()
-            .setTitle(`Kill History`)
-            .setDescription(`**Player:** ${killerName}\n**UUID:** ${killerGUID}\n${serverDisplay}**Last ${killRows.length} kills:**\n---------------`)
-            .setColor(teamkillsOnly ? "#FF6B35" : "#FFA500")
-            .setFooter({ text: "WCS Kill History" });
+            .setTitle(`💬 Chat Message History`)
+            .setDescription(`**Player:** ${playerName}\n**UUID:** ${playerGUID}\n${serverDisplay}**Last ${messageRows.length} messages:**\n---------------`)
+            .setColor("#4287f5")
+            .setFooter({ text: "RJS Message History" });
 
         let currentEmbedLength = embed.data.description?.length || 0;
         let fieldsAdded = 0;
         const maxFields = 25;
         const maxEmbedLength = 5500; 
 
-        for (let i = 0; i < killRows.length && fieldsAdded < maxFields; i++) {
-            const kill = killRows[i];
-            const friendlyFireIcon = kill.friendlyFire ? "⚠️ " : "";
-            const distance = kill.distance ? `${kill.distance.toFixed(1)}m` : 'Unknown';
-            const weapon = kill.weapon || 'Unknown';
-            const victimGUID = kill.victimGUID || 'Unknown';
+        for (let i = 0; i < messageRows.length && fieldsAdded < maxFields; i++) {
+            const msg = messageRows[i];
+            const channelType = msg.channelType || 'Unknown';
+            const message = msg.message || 'Empty message';
             
-            const fieldName = `${friendlyFireIcon}${i + 1}. ${kill.victimName || 'Unknown Victim'}`;
-            const fieldValue = `**GUID:** ${victimGUID}\n**Weapon:** ${weapon}\n**Distance:** ${distance}\n**Friendly Fire:** ${kill.friendlyFire ? 'Yes' : 'No'}`;
-            const fieldLength = fieldName.length + fieldValue.length;
+            let truncatedMessage = message.length > 200 ? message.substring(0, 200) + '...' : message;
+            
+            const fieldName = `${i + 1}. [${channelType}]`;
+            const fieldLength = fieldName.length + truncatedMessage.length;
             
             if (currentEmbedLength + fieldLength > maxEmbedLength) {
-                embed.addFields({
-                    name: "⚠️ Truncated",
-                    value: `Showing ${fieldsAdded} of ${killRows.length} kills (embed size limit reached)`,
-                    inline: false
-                });
-                break;
+                const availableSpace = maxEmbedLength - currentEmbedLength - fieldName.length - 50;
+                if (availableSpace > 50) {
+                    truncatedMessage = message.length > availableSpace ? message.substring(0, availableSpace) + '...' : message;
+                } else {
+                    embed.addFields({
+                        name: "⚠️ Truncated",
+                        value: `Showing ${fieldsAdded} of ${messageRows.length} messages (embed size limit reached)`,
+                        inline: false
+                    });
+                    break;
+                }
             }
             
             embed.addFields({
                 name: fieldName,
-                value: fieldValue,
+                value: truncatedMessage,
                 inline: false
             });
             
@@ -210,7 +207,7 @@ module.exports = async (interaction, serverInstance, discordClient, extraData = 
 
         await interaction.editReply({ embeds: [embed] });
     } catch (error) {
-        logger.error(`[KillHistoryWCS Command] Error: ${error.message}`);
-        await interaction.editReply('An error occurred while retrieving kill history.');
+        logger.error(`[MessageHistoryRJS Command] Error: ${error.message}`);
+        await interaction.editReply('An error occurred while retrieving message history.');
     }
 };

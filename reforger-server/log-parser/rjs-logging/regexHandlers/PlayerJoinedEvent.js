@@ -1,41 +1,42 @@
-// log-parser/wcs-commands/regexHandlers/PlayerConnectedEvent.js
+// log-parser/rjs-logging/regexHandlers/PlayerJoinedEvent.js
 const { EventEmitter } = require('events');
 
-class PlayerConnectedEventHandler extends EventEmitter {
+class PlayerJoinedEventHandler extends EventEmitter {
     constructor() {
         super();
-        this.regex = /(\d+)\|PlayerConnectedEvent:playerId=(\d+):playerName=([^:]+):playerGUID=([^:]+):profileName=([^:]+):platform=(.+)/;
+        this.regex = /\[([^\]]+)\] PLAYER_JOINED = playerBiId = ([^,]+), platform = ([^,]+), playerName = ([^,]+), playerId = (\d+), profileName = (.+)/;
     }
 
     test(line) {
-        return this.regex.test(line) && line.includes("PlayerConnectedEvent");
+        return this.regex.test(line) && line.includes("PLAYER_JOINED =");
     }
 
     processLine(line) {
         const match = this.regex.exec(line);
         if (match) {
             const timestamp = match[1];
-            const playerId = parseInt(match[2], 10);
-            const playerName = match[3];
-            const playerGUID = match[4];
-            const profileName = match[5];
-            const platform = match[6];
+            const playerBiId = match[2];
+            const platform = match[3];
+            const playerName = match[4];
+            const playerId = parseInt(match[5], 10);
+            const profileName = match[6];
             const platformType = this.getPlatformType(platform);
             
-            this.emit('playerConnectedEvent', { 
+            this.emit('playerJoinedEvent', { 
                 timestamp,
                 playerId,
                 playerName,
-                playerGUID,
+                playerBiId,
                 profileName,
                 platform,
                 platformType,
                 raw: {
-                    playerId,
+                    timestamp,
+                    playerBiId,
+                    platform,
                     playerName,
-                    playerGUID,
-                    profileName,
-                    platform
+                    playerId,
+                    profileName
                 }
             });
         }
@@ -54,4 +55,4 @@ class PlayerConnectedEventHandler extends EventEmitter {
     }
 }
 
-module.exports = PlayerConnectedEventHandler;
+module.exports = PlayerJoinedEventHandler;

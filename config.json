@@ -25,10 +25,9 @@
     }
   },
   "customParsers": {
-    "wcs-commands": {
-      "enabled": false,
-      "logDir": "/path/to/WCS_Commands/events",
-      "fileName": "events.txt"
+    "rjs-logging": {
+      "enabled": true,
+      "logDir": "/path/to/RJSLogging/events"
     }
   },
   "consoleLogLevel": "info",
@@ -164,39 +163,31 @@
       }
     },
     {
-      "plugin": "WCS_DBLog",
+      "plugin": "RJS_LogChat",
+      "requiredMods": "RJS Logging",
       "enabled": false,
-      "requiredMods": "WCS_core, WCS_Commands"
-    },
-    {
-      "plugin": "WCS_DBEvents",
-      "enabled": false,
-      "requiredMods": "WCS_core, WCS_Commands"
-    },
-    {
-      "plugin": "WCS_TKAutokick",
-      "enabled": false,
-      "requiredMods": "GM Tools, WCS_core, WCS_Commands",
-      "teamkillLimit": 4,
-      "timeWindowMinutes": 20,
-      "warningMessage": "Watch your fire, Teamkilling will result in your removal from the server"
-    },
-    {
-      "plugin": "WCS_LogTK",
-      "enabled": false,
-      "requiredMods": "WCS_core, WCS_Commands",
       "channel": "your-discord-channel-id-here"
     },
     {
-      "plugin": "WCS_LogChat",
+      "plugin": "RJS_LogTK",
+      "requiredMods": "RJS Logging",
       "enabled": false,
-      "requiredMods": "WCS_core, WCS_Commands",
       "channel": "your-discord-channel-id-here"
     },
     {
-      "plugin": "WCS_TK_Punishments",
+      "plugin": "RJS_DBEvents",
+      "requiredMods": "RJS Logging",
+      "enabled": false
+    },
+    {
+      "plugin": "RJS_DBLog",
+      "requiredMods": "RJS Logging",
+      "enabled": false
+    },
+    {
+      "plugin": "RJS_TK_Punishments",
       "enabled": false,
-      "requiredMods": "GM Tools, WCS_core, WCS_Commands",
+      "requiredMods": "GM Tools, RJS Logging",
       "teamkillKickLimit": 4,
       "logKicks": true,
       "logKickMessage": "Player was kicked for teamkilling\nReforgerJS Automated System",

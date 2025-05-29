@@ -1,35 +1,43 @@
-// log-parser/wcs-commands/regexHandlers/ChatMessageEvent.js
+// log-parser/rjs-logging/regexHandlers/ChatMessageEvent.js
 const { EventEmitter } = require('events');
 
 class ChatMessageEventHandler extends EventEmitter {
     constructor() {
         super();
-        this.regex = /(\d+)\|ChatMessageEvent:playerId=(\d+):playerName=([^:]+):playerGUID=([^:]+):channelId=(\d+):message=(.*)/;
+        this.regex = /\[([^\]]+)\] CHAT = playerBiId = ([^,]+), channelId = (\d+), message = ([^,]+), playerName = ([^,]+), playerId = (\d+)/;
     }
 
     test(line) {
-        return this.regex.test(line) && line.includes("ChatMessageEvent");
+        return this.regex.test(line) && line.includes("CHAT =");
     }
 
     processLine(line) {
         const match = this.regex.exec(line);
         if (match) {
             const timestamp = match[1];
-            const playerId = parseInt(match[2], 10);
-            const playerName = match[3];
-            const playerGUID = match[4]; 
-            const channelId = parseInt(match[5], 10);
-            const message = match[6];
+            const playerBiId = match[2];
+            const channelId = parseInt(match[3], 10);
+            const message = match[4];
+            const playerName = match[5];
+            const playerId = parseInt(match[6], 10);
             const channelType = this.getChannelType(channelId);
             
             this.emit('chatMessageEvent', { 
                 timestamp,
                 playerId,
                 playerName,
-                playerGUID,
+                playerBiId,
                 channelId,
                 channelType,
-                message
+                message,
+                raw: {
+                    timestamp,
+                    playerBiId,
+                    channelId,
+                    message,
+                    playerName,
+                    playerId
+                }
             });
         }
     }

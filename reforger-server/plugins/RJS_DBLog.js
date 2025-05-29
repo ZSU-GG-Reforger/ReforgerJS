@@ -1,9 +1,9 @@
 const mysql = require("mysql2/promise");
 
-class WCS_DBLog {
+class RJS_DBLog {
   constructor(config) {
     this.config = config;
-    this.name = "WCS_DBLog Plugin";
+    this.name = "RJS_DBLog Plugin";
     this.isInitialized = false;
     this.serverInstance = null;
     this.playerCache = new Map();
@@ -31,11 +31,11 @@ class WCS_DBLog {
 
       const dbLogPlugin = this.config.plugins.find(plugin => plugin.plugin === "DBLog");
       if (!dbLogPlugin || !dbLogPlugin.enabled) {
-        logger.error(`[${this.name}] DBLog plugin must be enabled for WCS_DBLog to work. Plugin will be disabled.`);
+        logger.error(`[${this.name}] DBLog plugin must be enabled for RJS_DBLog to work. Plugin will be disabled.`);
         return;
       }
 
-      const pluginConfig = this.config.plugins.find(plugin => plugin.plugin === "WCS_DBLog");
+      const pluginConfig = this.config.plugins.find(plugin => plugin.plugin === "RJS_DBLog");
       if (!pluginConfig || !pluginConfig.enabled) {
         logger.verbose(`[${this.name}] Plugin is disabled in configuration.`);
         return;
@@ -51,7 +51,7 @@ class WCS_DBLog {
       this.setupEventListeners();
 
       this.isInitialized = true;
-      logger.info(`[${this.name}] Initialized successfully and listening for WCS events.`);
+      logger.info(`[${this.name}] Initialized successfully and listening for RJS events.`);
     } catch (error) {
       logger.error(`[${this.name}] Error during initialization: ${error.message}`);
     }
@@ -107,24 +107,25 @@ class WCS_DBLog {
   }
 
   setupEventListeners() {
-    this.serverInstance.on('playerConnectedEvent', this.handlePlayerConnected.bind(this));
+    this.serverInstance.on('rjsPlayerJoinedEvent', this.handlePlayerJoined.bind(this));
   }
 
-  async handlePlayerConnected(data) {
-    if (!data || !data.playerGUID || !data.playerName) {
-      logger.warn(`[${this.name}] Received incomplete playerConnectedEvent data`);
+  async handlePlayerJoined(data) {
+    if (!data || !data.playerBiId || !data.playerName) {
+      logger.warn(`[${this.name}] Received incomplete rjsPlayerJoinedEvent data`);
       return;
     }
 
     try {
-      const playerUID = data.playerGUID;
+      const playerUID = data.playerBiId; 
       const playerName = data.playerName;
       const profileName = data.profileName || null;
       const platform = data.platform || null;
+      const playerId = data.playerId || null;
 
       const cacheKey = `${playerUID}_${profileName}_${platform}`;
       if (this.playerCache.has(cacheKey)) {
-        logger.verbose(`[${this.name}] Player ${playerName} WCS data already cached, skipping update`);
+        logger.verbose(`[${this.name}] Player ${playerName} RJS data already cached, skipping update`);
         return;
       }
 
@@ -163,9 +164,9 @@ class WCS_DBLog {
           const updateQuery = `UPDATE players SET ${setClause} WHERE playerUID = ?`;
           await process.mysqlPool.query(updateQuery, values);
 
-          logger.info(`[${this.name}] Updated WCS data for player ${playerName} (${playerUID})`);
+          logger.info(`[${this.name}] Updated RJS data for player ${playerName} (${playerUID})`);
         } else {
-          logger.verbose(`[${this.name}] No WCS data update needed for player ${playerName}`);
+          logger.verbose(`[${this.name}] No RJS data update needed for player ${playerName}`);
         }
       } else {
         const insertQuery = `
@@ -179,7 +180,7 @@ class WCS_DBLog {
           platform
         ]);
 
-        logger.info(`[${this.name}] Created new player record for ${playerName} (${playerUID}) with WCS data`);
+        logger.info(`[${this.name}] Created new player record for ${playerName} (${playerUID}) with RJS data`);
       }
 
       this.playerCache.set(cacheKey, true);
@@ -188,13 +189,13 @@ class WCS_DBLog {
       }, this.cacheTTL);
 
     } catch (error) {
-      logger.error(`[${this.name}] Error handling playerConnectedEvent for ${data.playerName}: ${error.message}`);
+      logger.error(`[${this.name}] Error handling rjsPlayerJoinedEvent for ${data.playerName}: ${error.message}`);
     }
   }
 
   async cleanup() {
     if (this.serverInstance) {
-      this.serverInstance.removeAllListeners('playerConnectedEvent');
+      this.serverInstance.removeAllListeners('rjsPlayerJoinedEvent');
       this.serverInstance = null;
     }
     this.playerCache.clear();
@@ -203,4 +204,4 @@ class WCS_DBLog {
   }
 }
 
-module.exports = WCS_DBLog;
+module.exports = RJS_DBLog;
