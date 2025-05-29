@@ -102,6 +102,12 @@
       "command": "messagehistorywcs",
       "enabled": false,
       "commandLevel": 3
+    },
+
+    {
+      "command": "reload",
+      "enabled": false,
+      "commandLevel": 1
     }
   ],
   "plugins": [

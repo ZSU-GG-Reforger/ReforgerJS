@@ -71,6 +71,7 @@ async function main() {
 
         // 6) Mount plugins with the server instance and Discord client
         await mountPlugins(loadedPlugins, serverInstance, discordClient);
+        global.currentPlugins = loadedPlugins;
 
         // 7) Load and initialize CommandHandler
         const CommandHandler = require('./reforger-server/commandHandler');

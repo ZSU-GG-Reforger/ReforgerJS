@@ -83,7 +83,6 @@ class ServerStatus {
 
       if (embedConfig.footer) embed.setFooter({ text: embedConfig.footer });
       
-      // Only set thumbnail if thumbnail is not explicitly set to false and a URL is provided
       if (embedConfig.thumbnail !== false && embedConfig.thumbnailURL?.trim()) {
         logger.verbose(`ServerStatus plugin: Setting thumbnail to ${embedConfig.thumbnailURL}`);
         embed.setThumbnail(embedConfig.thumbnailURL);
