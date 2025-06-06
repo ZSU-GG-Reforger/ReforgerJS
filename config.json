@@ -25,10 +25,6 @@
     }
   },
   "customParsers": {
-    "rjs-logging": {
-      "enabled": true,
-      "logDir": "/path/to/RJSLogging/events"
-    }
   },
   "consoleLogLevel": "info",
   "outputLogLevel": "info",
@@ -94,17 +90,6 @@
       "kick": 3
     },
     {
-      "command": "killhistorywcs",
-      "enabled": false,
-      "commandLevel": 3
-    },
-    {
-      "command": "messagehistorywcs",
-      "enabled": false,
-      "commandLevel": 3
-    },
-
-    {
       "command": "reload",
       "enabled": false,
       "commandLevel": 1
@@ -167,67 +152,6 @@
         "thumbnail": false,
         "thumbnailURL": "https://IMAGE_URL_HERE.png"
       }
-    },
-    {
-      "plugin": "RJS_LogChat",
-      "requiredMods": "RJS Logging",
-      "enabled": false,
-      "channel": "your-discord-channel-id-here"
-    },
-    {
-      "plugin": "RJS_LogTK",
-      "requiredMods": "RJS Logging",
-      "enabled": false,
-      "channel": "your-discord-channel-id-here"
-    },
-    {
-      "plugin": "RJS_DBEvents",
-      "requiredMods": "RJS Logging",
-      "enabled": false
-    },
-    {
-      "plugin": "RJS_DBLog",
-      "requiredMods": "RJS Logging",
-      "enabled": false
-    },
-    {
-      "plugin": "RJS_TK_Punishments",
-      "enabled": false,
-      "requiredMods": "GM Tools, RJS Logging",
-      "teamkillKickLimit": 4,
-      "logKicks": true,
-      "logKickMessage": "Player was kicked for teamkilling\nReforgerJS Automated System",
-      "warnEveryTK": true,
-      "warningMessage": "Watch your fire, Teamkilling will result in your removal from the server",
-      "enableBMBans": true,
-      "banKickThreshold": 2,
-      "banKickLimit": 14,
-      "BanDuration": 24,
-      "BanReason": "Intentional Teamkilling - banned for {{duration}} - appeal at https://discord.gg/LinkToDiscord",
-      "BanMessage": "Banned for Teamkilling. ReforgerJS Automated System",
-      "BanAutoAddEnabled": false,
-      "BanNativeEnabled": false,
-      "BanOrgWide": true
-    },
-    {
-      "plugin": "BMDevTest",
-      "enabled": false,
-      "testUUID": "Test player UUID",
-      "testFlags": false,
-      "testFlagID": "Test FlagID",
-      "testNotes": false,
-      "testNote": "TestNoteMessage",
-      "testBans": false,
-      "testBanDuration": 24,
-      "testBanReason": "Test- banned for {{duration}} - appeal at https://discord.gg/test",
-      "testBanMessage": "BanMessageNotes",
-      "testBanAutoAddEnabled": false,
-      "testBanNativeEnabled": false,
-      "testBanOrgWide": true,
-      "testBanID": "banIDHere",
-      "testEditBan": false,
-      "testBanEditMessage": "BanMessageNotes - Edited",
-      "testRemoveBan": false
     }
   ],
   "github": {
