@@ -148,9 +148,9 @@ class ReforgerServer extends EventEmitter {
             continue;
           }
 
-          if (!parserConfig.logDir || !parserConfig.fileName) {
+          if (!parserConfig.logDir) {
             logger.error(
-              `Custom parser ${parserName} is missing required configuration (logDir or fileName)`
+              `Custom parser ${parserName} is missing required configuration (logDir)`
             );
             continue;
           }
@@ -189,8 +189,9 @@ class ReforgerServer extends EventEmitter {
 
           let customParser;
           try {
+            const fileName = parserConfig.fileName || null;
             customParser = new CustomParserClass(
-              parserConfig.fileName,
+              fileName,
               customParserOptions
             );
           } catch (instantiationError) {

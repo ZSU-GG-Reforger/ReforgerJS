@@ -25,11 +25,6 @@
     }
   },
   "customParsers": {
-    "wcs-commands": {
-      "enabled": false,
-      "logDir": "/path/to/WCS_Commands/events",
-      "fileName": "events.txt"
-    }
   },
   "consoleLogLevel": "info",
   "outputLogLevel": "info",
@@ -47,6 +42,13 @@
       "password": "password",
       "database": "reforgerjs",
       "dialect": "mysql"
+    },
+    "battlemetrics": {
+      "enabled": true,
+      "orgID": "Your Org ID",
+      "serverID": "Your Server ID",
+      "token": "Your BattleMetrics API Token",
+      "listID": "Your Ban List ID"
     }
   },
   "roles": {
@@ -86,6 +88,11 @@
       "shutdown": 3,
       "restart": 3,
       "kick": 3
+    },
+    {
+      "command": "reload",
+      "enabled": false,
+      "commandLevel": 1
     }
   ],
   "plugins": [
@@ -145,21 +152,11 @@
         "thumbnail": false,
         "thumbnailURL": "https://IMAGE_URL_HERE.png"
       }
-    },
-    {
-      "plugin": "WCS_DBLog",
-      "enabled": false
-    },
-    {
-      "plugin": "WCS_DBEvents",
-      "enabled": false
-    },
-    {
-      "plugin": "WCS_TKAutokick",
-      "enabled": false,
-      "teamkillLimit": 4,
-      "timeWindowMinutes": 20,
-      "warningMessage": "Watch your fire, Teamkilling will result in your removal from the server | THIS WARNING NEEDS GM TOOLS MOD INSTALLED"
     }
-  ]
+  ],
+  "github": {
+    "owner": "ZSU-GG-Reforger",
+    "repo": "ReforgerJS"
+  }
 }
+
