@@ -78,10 +78,18 @@ async function main() {
         const commandHandler = new CommandHandler(config, serverInstance, discordClient);
         await commandHandler.initialize();
 
+        // 8) Load and initialize ButtonHandler
+        const ButtonHandler = require('./reforger-server/buttonHandler');
+        const buttonHandler = new ButtonHandler(config, serverInstance, discordClient);
+        await buttonHandler.initialize();
+
         // Add interaction listener for slash commands
         discordClient.on('interactionCreate', async (interaction) => {
             try {
+                logger.info(`Interaction received - Type: ${interaction.type}, isCommand: ${interaction.isCommand()}, isButton: ${interaction.isButton()}`);
+                
                 if (interaction.isCommand()) {
+                    logger.info(`Command interaction - commandName: ${interaction.commandName}`);
                     const commandName = interaction.commandName;
                     const extraData = {};
                     
@@ -92,13 +100,19 @@ async function main() {
                     }
                     
                     await commandHandler.handleCommand(interaction, extraData);
+                } else if (interaction.isButton()) {
+                    logger.info(`Button interaction - customId: ${interaction.customId}`);
+                    await buttonHandler.handleButton(interaction);
+                } else {
+                    logger.info(`Unhandled interaction type: ${interaction.type}`);
                 }
             } catch (error) {
                 logger.error(`Error handling interaction: ${error.message}`);
+                logger.error(`Error stack: ${error.stack}`);
             }
         });
         
-        // 8) Connect RCON, start sending 'players'
+        // 9) Connect RCON, start sending 'players'
         serverInstance.startSendingPlayersCommand(30000);
         logger.info('Server is up and running!');
 
